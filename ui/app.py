@@ -9,6 +9,7 @@ import streamlit as st
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import uuid
+from pathlib import Path
 
 # Import system components
 from config.settings import get_settings
@@ -58,25 +59,49 @@ def load_rag_chain() -> Optional[RAGChain]:
 
 def render_header():
     """Render the application header."""
+    # Get logo path
+    logo_path = Path(__file__).parent / "assets" / "logo.png"
+    
+    # Set page config with logo
     st.set_page_config(
         page_title="AI Knowledge Continuity System",
-        page_icon="🧠",
+        page_icon=str(logo_path) if logo_path.exists() else "🧠",
         layout="wide",
         initial_sidebar_state="expanded",
     )
     
-    st.title("🧠 AI Knowledge Continuity System")
-    st.markdown(
-        "*Preserving organizational knowledge through intelligent retrieval*"
-    )
+    # Display logo and title in header
+    col1, col2 = st.columns([1, 5])
+    
+    with col1:
+        if logo_path.exists():
+            st.image(str(logo_path), width=100)
+        else:
+            st.markdown("## 🧠")
+    
+    with col2:
+        st.title("AI Knowledge Continuity System")
+        st.markdown(
+            "*Preserving organizational knowledge through intelligent retrieval*"
+        )
+    
     st.divider()
 
 
 def render_sidebar():
     """Render the sidebar with settings and info."""
     settings = get_settings()
+    logo_path = Path(__file__).parent / "assets" / "logo.png"
     
     with st.sidebar:
+        # Display logo at top of sidebar
+        if logo_path.exists():
+            st.image(str(logo_path), width=150)
+        else:
+            st.markdown("# 🧠")
+        
+        st.markdown("---")
+        
         st.header("⚙️ Settings")
         
         # Session info

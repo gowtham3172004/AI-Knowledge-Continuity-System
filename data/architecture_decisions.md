@@ -1,65 +1,31 @@
-# Architecture Decision Record: Database Selection
+# Architecture Decision Records (ADR)
 
-## Status
-Accepted
+## Decision: Use Redis instead of RabbitMQ for caching and task coordination
 
-## Context
-Our application needs a reliable database solution that can handle:
-- High read throughput (10,000+ queries/second)
-- Complex queries with joins
-- ACID compliance for financial transactions
-- Horizontal scalability for future growth
+### Context
+During the development of Project X, the backend team needed a fast and reliable
+mechanism for caching frequently accessed data and coordinating lightweight background tasks.
 
-## Decision
-We have decided to use **PostgreSQL** as our primary database with **Redis** for caching.
+The primary options evaluated were Redis and RabbitMQ.
 
-## Reasoning
+### Decision
+Redis was selected as the primary in-memory data store.
 
-### Why PostgreSQL?
-1. **Mature and Reliable**: 30+ years of development, battle-tested in production
-2. **Feature Rich**: JSON support, full-text search, extensions
-3. **Strong Community**: Excellent documentation and community support
-4. **Cost Effective**: Open source with no licensing fees
+### Rationale
+- Redis provides sub-millisecond latency, which is critical for API response times.
+- The system required fast key-value access rather than complex message routing.
+- Redis supports simple pub/sub features that were sufficient for our use case.
+- Operational overhead for Redis was lower compared to RabbitMQ.
 
-### Why Not MongoDB?
-We considered MongoDB but rejected it because:
-- Our data model has clear relationships (better suited for SQL)
-- We need strong consistency for financial transactions
-- The team has more experience with PostgreSQL
+### Trade-offs
+- Redis does not guarantee message durability like RabbitMQ.
+- This was accepted because the tasks were idempotent and non-critical.
 
-### Why Redis for Caching?
-- Sub-millisecond response times
-- Built-in data structures (lists, sets, sorted sets)
-- Simple to operate and scale
-- Excellent for session management
+### Outcome
+System performance improved by approximately 35%, and operational complexity was reduced.
 
-## Consequences
+### Author
+Senior Backend Engineer
 
-### Positive
-- Reliable data consistency
-- Familiar technology for the team
-- Rich querying capabilities
-- Good tooling ecosystem
-
-### Negative
-- Need to manage two systems (Postgres + Redis)
-- Horizontal scaling requires more planning (sharding/read replicas)
-- Team needs Redis training
-
-## Implementation Notes
-- Use connection pooling (PgBouncer) for high concurrency
-- Set up read replicas for read-heavy workloads
-- Implement cache invalidation strategy for Redis
-- Use prepared statements for security and performance
-
-## Related Decisions
-- ADR-002: Caching Strategy
-- ADR-003: Backup and Recovery
-
-## Date
-2024-06-15
-
-## Authors
-- Lead Architect: Sarah Chen
-- Database Admin: Mike Johnson
-- Tech Lead: Jane Doe
+### Date
+2023-08-14
