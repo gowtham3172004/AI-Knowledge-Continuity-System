@@ -3,6 +3,10 @@ Document Chunking Module for AI Knowledge Continuity System.
 
 This module provides intelligent text chunking with support for
 multiple strategies, metadata preservation, and semantic coherence.
+
+Extended to preserve:
+- Knowledge type classification metadata
+- Decision metadata (author, date, alternatives, tradeoffs)
 """
 
 from typing import List, Optional, Literal
@@ -155,6 +159,9 @@ class DocumentChunker:
         """
         Enrich chunk metadata with additional information.
         
+        This method preserves knowledge classification and decision metadata
+        from the parent document while adding chunk-specific information.
+        
         Args:
             chunk: The chunk to enrich.
             chunk_index: Index of this chunk within its parent document.
@@ -164,6 +171,7 @@ class DocumentChunker:
         Returns:
             Chunk with enriched metadata.
         """
+        # Standard chunk metadata
         chunk.metadata.update({
             "chunk_index": chunk_index,
             "total_chunks_in_doc": total_chunks_for_doc,
@@ -172,6 +180,41 @@ class DocumentChunker:
             "is_first_chunk": chunk_index == 0,
             "is_last_chunk": chunk_index == total_chunks_for_doc - 1,
         })
+        
+        # Preserve knowledge classification metadata (Feature 1 & 2)
+        # These fields are inherited from the parent document
+        knowledge_fields = [
+            "knowledge_type",
+            "knowledge_confidence",
+            "classification_reason",
+            "tacit_indicators",
+            "decision_indicators",
+        ]
+        
+        # Preserve decision metadata fields (Feature 2)
+        decision_fields = [
+            "decision_id",
+            "decision_title",
+            "decision_author",
+            "decision_date",
+            "decision_status",
+            "has_alternatives",
+            "has_tradeoffs",
+            "decision_alternatives",
+            "decision_tradeoffs",
+            "decision_stakeholders",
+            "decision_pros",
+            "decision_cons",
+            "decision_extraction_confidence",
+        ]
+        
+        # These fields are already in chunk.metadata from parent, just ensure they're preserved
+        # Log if critical fields are present for debugging
+        if chunk.metadata.get("knowledge_type") in ["tacit", "decision"]:
+            logger.debug(
+                f"Chunk {chunk_index} preserving {chunk.metadata.get('knowledge_type')} "
+                f"knowledge type from {chunk.metadata.get('file_name', 'unknown')}"
+            )
         
         return chunk
     

@@ -29,7 +29,8 @@ huggingface-hub>=0.23.0
 # =============================================================================
 # Embeddings & Vector Store
 # =============================================================================
-sentence-transformers>=2.7.0
+# Note: sentence-transformers requires torch, but torch doesn't support Python 3.13 yet
+# Using HuggingFace embeddings as alternative
 faiss-cpu>=1.8.0
 
 # =============================================================================
@@ -56,6 +57,7 @@ streamlit>=1.33.0
 # =============================================================================
 tqdm>=4.66.0
 tenacity>=8.3.0
+structlog>=24.0.0
 
 # =============================================================================
 # Development & Testing

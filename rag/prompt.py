@@ -3,6 +3,11 @@ Prompt Templates Module for AI Knowledge Continuity System.
 
 This module provides carefully crafted prompt templates for
 various RAG operations with support for customization.
+
+Extended to support:
+- Feature 1: Tacit Knowledge Emphasis
+- Feature 2: Decision Traceability
+- Feature 3: Knowledge Gap Guardrails
 """
 
 from typing import Dict, List, Optional
@@ -45,7 +50,10 @@ Guidelines:
 4. Provide clear, structured responses with reasoning when appropriate
 5. If the context contains conflicting information, acknowledge it and present all perspectives
 6. Preserve technical accuracy and domain-specific terminology
-7. When explaining processes or decisions, include the "why" behind them when available"""
+7. When explaining processes or decisions, include the "why" behind them when available
+8. NEVER speculate, guess, or extrapolate beyond what is explicitly stated in the context
+9. For tacit knowledge (lessons learned, best practices), emphasize practical recommendations
+10. For decisions, always explain the rationale, alternatives considered, and trade-offs"""
 
     # Main QA prompt template
     QA_TEMPLATE = """You are an expert organizational knowledge assistant.
@@ -65,6 +73,78 @@ Context from organizational knowledge base:
 Question: {question}
 
 Answer:"""
+
+    # === TACIT KNOWLEDGE PROMPT (Feature 1) ===
+    TACIT_KNOWLEDGE_TEMPLATE = """You are an expert organizational knowledge assistant specializing in experiential insights.
+
+The user is asking about lessons learned, best practices, or things to avoid. The context includes 
+tacit knowledge from exit interviews, postmortems, and lessons learned documents.
+
+PRIORITIZE sharing:
+- Practical recommendations and tips
+- Common mistakes and pitfalls to avoid
+- Insights from past experiences
+- "What we learned" and "what we would do differently"
+
+When answering:
+- Emphasize experiential insights over theoretical information
+- Clearly attribute insights to their source (e.g., "According to lessons from the backend team...")
+- Structure recommendations as actionable advice
+- If the context contains warnings or cautionary notes, highlight them prominently
+
+Context from organizational knowledge base (includes tacit knowledge):
+{context}
+
+Question: {question}
+
+Answer (focus on practical wisdom and lessons learned):"""
+
+    # === DECISION TRACEABILITY PROMPT (Feature 2) ===
+    DECISION_TRACEABILITY_TEMPLATE = """You are an expert organizational knowledge assistant specializing in decision history.
+
+The user is asking about WHY a decision was made. The context includes Architecture Decision Records (ADRs),
+meeting notes, and design documents that capture organizational decisions.
+
+Your answer MUST include (when available in context):
+1. **What was decided**: The actual decision or choice made
+2. **Why it was made**: The rationale and reasoning
+3. **When it was made**: Date or timeframe
+4. **Who made it**: Author, team, or stakeholders involved
+5. **Alternatives considered**: Other options that were evaluated
+6. **Trade-offs accepted**: What was sacrificed for the chosen approach
+
+IMPORTANT:
+- Only include information explicitly stated in the context
+- If decision details are missing, acknowledge what is unknown
+- Reference specific documents (ADRs, meeting notes) as sources
+- Do NOT speculate about reasons or alternatives not mentioned in context
+
+Context from organizational knowledge base (includes decision records):
+{context}
+
+Question: {question}
+
+Answer (structure your response around the decision points above):"""
+
+    # === KNOWLEDGE GAP GUARDRAIL PROMPT (Feature 3) ===
+    GAP_AWARE_TEMPLATE = """You are an expert organizational knowledge assistant with strict accuracy requirements.
+
+CRITICAL INSTRUCTIONS:
+1. Answer ONLY using information from the provided context
+2. If the context does not contain sufficient information, you MUST respond:
+   "I don't have sufficient information in the knowledge base to answer this question."
+3. NEVER guess, speculate, extrapolate, or provide generic information
+4. If you're unsure, err on the side of caution and acknowledge the limitation
+5. Do not combine partial information to create an answer that isn't explicitly supported
+
+{additional_guidance}
+
+Context from organizational knowledge base:
+{context}
+
+Question: {question}
+
+Answer (only if supported by context, otherwise acknowledge the gap):"""
 
     # Condensed question template for conversation history
     CONDENSE_QUESTION_TEMPLATE = """Given the following conversation history and a follow-up question, 
@@ -125,6 +205,19 @@ Extracted Information:"""
                 input_variables=["text"],
                 template=self.EXTRACTION_TEMPLATE,
             ),
+            # Knowledge-aware templates (Features 1, 2, 3)
+            "tacit_knowledge": PromptTemplate(
+                input_variables=["context", "question"],
+                template=self.TACIT_KNOWLEDGE_TEMPLATE,
+            ),
+            "decision_traceability": PromptTemplate(
+                input_variables=["context", "question"],
+                template=self.DECISION_TRACEABILITY_TEMPLATE,
+            ),
+            "gap_aware": PromptTemplate(
+                input_variables=["context", "question", "additional_guidance"],
+                template=self.GAP_AWARE_TEMPLATE,
+            ),
         }
     
     def get_qa_prompt(self) -> PromptTemplate:
@@ -142,6 +235,45 @@ Extracted Information:"""
     def get_extraction_prompt(self) -> PromptTemplate:
         """Get the information extraction prompt template."""
         return self._templates["extract"]
+    
+    def get_tacit_knowledge_prompt(self) -> PromptTemplate:
+        """Get the tacit knowledge prompt template (Feature 1)."""
+        return self._templates["tacit_knowledge"]
+    
+    def get_decision_traceability_prompt(self) -> PromptTemplate:
+        """Get the decision traceability prompt template (Feature 2)."""
+        return self._templates["decision_traceability"]
+    
+    def get_gap_aware_prompt(self) -> PromptTemplate:
+        """Get the gap-aware prompt template (Feature 3)."""
+        return self._templates["gap_aware"]
+    
+    def get_prompt_for_query_type(
+        self,
+        query_type: str,
+        has_gap_warning: bool = False,
+    ) -> PromptTemplate:
+        """
+        Get the appropriate prompt template based on query type.
+        
+        This method selects the best prompt based on detected query intent
+        and gap detection status.
+        
+        Args:
+            query_type: Type of query ("tacit", "decision", "general").
+            has_gap_warning: Whether a knowledge gap warning is present.
+            
+        Returns:
+            Appropriate PromptTemplate for the query type.
+        """
+        if has_gap_warning:
+            return self._templates["gap_aware"]
+        elif query_type == "tacit":
+            return self._templates["tacit_knowledge"]
+        elif query_type == "decision":
+            return self._templates["decision_traceability"]
+        else:
+            return self._templates["qa"]
     
     def get_chat_prompt(self) -> ChatPromptTemplate:
         """

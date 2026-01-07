@@ -4,6 +4,10 @@ Document Loading Module for AI Knowledge Continuity System.
 This module provides production-grade document loading capabilities
 with support for multiple file formats, metadata extraction, and
 comprehensive error handling.
+
+Extended to support:
+- Knowledge type classification (explicit, tacit, decision)
+- Decision metadata extraction for ADR and design documents
 """
 
 import os
@@ -26,6 +30,14 @@ from tqdm import tqdm
 from config.settings import get_settings
 from core.logger import get_logger
 from core.exceptions import DocumentLoadError
+
+# Import knowledge classification components
+try:
+    from knowledge.knowledge_classifier import KnowledgeClassifier, classify_document
+    from knowledge.decision_parser import DecisionParser, parse_decision_document
+    KNOWLEDGE_FEATURES_AVAILABLE = True
+except ImportError:
+    KNOWLEDGE_FEATURES_AVAILABLE = False
 
 logger = get_logger(__name__)
 
@@ -87,6 +99,7 @@ class DocumentLoader:
         data_dir: Optional[str] = None,
         custom_loaders: Optional[List[LoaderConfig]] = None,
         show_progress: bool = True,
+        enable_knowledge_classification: bool = True,
     ):
         """
         Initialize the document loader.
@@ -95,10 +108,27 @@ class DocumentLoader:
             data_dir: Directory containing documents. Defaults to config setting.
             custom_loaders: Additional loader configurations to use.
             show_progress: Whether to show progress bar during loading.
+            enable_knowledge_classification: Whether to classify documents by knowledge type.
         """
         self.settings = get_settings()
         self.data_dir = Path(data_dir or self.settings.DATA_DIR)
         self.show_progress = show_progress
+        
+        # Knowledge classification settings
+        self.enable_knowledge_classification = (
+            enable_knowledge_classification and 
+            KNOWLEDGE_FEATURES_AVAILABLE and
+            getattr(self.settings, 'ENABLE_KNOWLEDGE_CLASSIFICATION', True)
+        )
+        
+        # Initialize classifiers if enabled
+        if self.enable_knowledge_classification:
+            self._knowledge_classifier = KnowledgeClassifier()
+            self._decision_parser = DecisionParser()
+            logger.info("Knowledge classification enabled for document loading")
+        else:
+            self._knowledge_classifier = None
+            self._decision_parser = None
         
         # Combine default and custom loaders
         self.loaders = self.DEFAULT_LOADERS.copy()
@@ -130,12 +160,15 @@ class DocumentLoader:
         """
         Extract and enrich metadata from a document.
         
+        This method now includes knowledge classification and decision
+        metadata extraction for enhanced retrieval capabilities.
+        
         Args:
             doc: The document to extract metadata from.
             source_type: Type of the source file.
             
         Returns:
-            Enriched metadata dictionary.
+            Enriched metadata dictionary including knowledge_type and decision metadata.
         """
         source_path = Path(doc.metadata.get("source", ""))
         
@@ -163,6 +196,50 @@ class DocumentLoader:
             if parts:
                 metadata["category"] = "/".join(parts)
                 metadata["department"] = parts[0] if parts else "general"
+        
+        # === KNOWLEDGE CLASSIFICATION (Feature 1 & 2) ===
+        if self.enable_knowledge_classification and self._knowledge_classifier:
+            try:
+                # Classify the document
+                classification = self._knowledge_classifier.classify(
+                    filename=source_path.name if source_path else None,
+                    filepath=str(source_path) if source_path else None,
+                    content=doc.page_content,
+                )
+                
+                # Add classification metadata
+                metadata.update(classification.to_metadata())
+                
+                # If it's a decision document, extract decision metadata
+                if classification.knowledge_type.value == "decision" and self._decision_parser:
+                    decision_meta = self._decision_parser.parse(
+                        content=doc.page_content,
+                        filename=source_path.name if source_path else None,
+                        filepath=str(source_path) if source_path else None,
+                    )
+                    
+                    # Add decision metadata
+                    metadata.update(decision_meta.to_metadata())
+                    
+                    logger.debug(
+                        f"Decision metadata extracted from {source_path.name}: "
+                        f"confidence={decision_meta.extraction_confidence:.2f}"
+                    )
+                
+                logger.debug(
+                    f"Classified '{source_path.name}' as {classification.knowledge_type.value} "
+                    f"(confidence: {classification.confidence:.2f})"
+                )
+                
+            except Exception as e:
+                # Don't fail loading if classification fails
+                logger.warning(f"Knowledge classification failed for {source_path}: {e}")
+                metadata["knowledge_type"] = "explicit"
+                metadata["knowledge_confidence"] = 0.5
+        else:
+            # Default classification when feature is disabled
+            metadata["knowledge_type"] = "explicit"
+            metadata["knowledge_confidence"] = 1.0
         
         return metadata
     

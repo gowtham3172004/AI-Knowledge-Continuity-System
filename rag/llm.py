@@ -119,8 +119,7 @@ class LocalLLMProvider(BaseLLMProvider):
         Check if local LLM is available.
         Always returns False until hardware is available.
         """
-        # TODO: Implement hardware check (GPU memory, etc.)
-        # For now, return False as hardware is not available
+        # Local LLM support disabled - hardware requirements not met
         return False
     
     def get_llm(self) -> BaseLanguageModel:

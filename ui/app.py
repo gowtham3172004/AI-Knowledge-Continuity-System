@@ -3,6 +3,11 @@ Streamlit UI for AI Knowledge Continuity System.
 
 This module provides a production-grade web interface for the
 knowledge continuity system with chat functionality.
+
+Extended to display:
+- Feature 1: Tacit knowledge indicators
+- Feature 2: Decision traceability metadata
+- Feature 3: Knowledge gap warnings and confidence scores
 """
 
 import streamlit as st
@@ -167,27 +172,134 @@ def render_sidebar():
             st.warning("⏳ System Loading...")
 
 
-def render_chat_message(role: str, content: str, sources: List[Dict] = None):
-    """Render a single chat message."""
+def render_chat_message(role: str, content: str, sources: List[Dict] = None, response_metadata: Dict = None):
+    """
+    Render a single chat message with knowledge-aware indicators.
+    
+    Args:
+        role: Message role ('user' or 'assistant').
+        content: Message content.
+        sources: Source documents list.
+        response_metadata: Knowledge metadata (query_type, confidence, warnings).
+    """
     with st.chat_message(role):
         st.markdown(content)
         
+        # === KNOWLEDGE-AWARE INDICATORS (Features 1, 2, 3) ===
+        if response_metadata and role == "assistant":
+            _render_knowledge_indicators(response_metadata)
+        
         # Show sources if available and enabled
         if sources and st.session_state.show_sources:
-            with st.expander(f"📚 Sources ({len(sources)})"):
-                for i, source in enumerate(sources, 1):
-                    st.markdown(f"**Source {i}:** {source.get('source', 'Unknown')}")
-                    st.text(source.get('content_preview', '')[:300] + "...")
-                    st.divider()
+            _render_sources(sources)
+
+
+def _render_knowledge_indicators(metadata: Dict):
+    """Render knowledge type indicators and warnings."""
+    # Query type indicator (Features 1 & 2)
+    query_type = metadata.get("query_type", "general")
+    confidence = metadata.get("confidence")
+    gap_detected = metadata.get("knowledge_gap_detected", False)
+    gap_severity = metadata.get("gap_severity")
+    warnings = metadata.get("validation_warnings", [])
+    knowledge_types = metadata.get("knowledge_types_used", [])
+    
+    # Knowledge type badge
+    type_badges = {
+        "tacit": ("📚 Tacit Knowledge", "Insights from lessons learned and experience"),
+        "decision": ("📋 Decision Record", "Based on documented decisions and rationale"),
+        "general": ("📄 Documentation", "Based on standard documentation"),
+    }
+    
+    badge_text, badge_tooltip = type_badges.get(query_type, type_badges["general"])
+    
+    # Create columns for indicators
+    col1, col2, col3 = st.columns([2, 2, 2])
+    
+    with col1:
+        st.caption(f"🏷️ **{badge_text}**")
+    
+    with col2:
+        if confidence is not None:
+            confidence_pct = int(confidence * 100)
+            if confidence_pct >= 70:
+                st.caption(f"✅ Confidence: {confidence_pct}%")
+            elif confidence_pct >= 50:
+                st.caption(f"⚠️ Confidence: {confidence_pct}%")
+            else:
+                st.caption(f"🔴 Confidence: {confidence_pct}%")
+    
+    with col3:
+        if knowledge_types:
+            types_str = ", ".join(knowledge_types)
+            st.caption(f"📁 Sources: {types_str}")
+    
+    # Knowledge gap warning (Feature 3)
+    if gap_detected:
+        severity_colors = {
+            "low": "warning",
+            "medium": "warning", 
+            "high": "error",
+            "critical": "error",
+        }
+        severity_icons = {
+            "low": "⚠️",
+            "medium": "⚠️",
+            "high": "🚨",
+            "critical": "🚨",
+        }
+        
+        color = severity_colors.get(gap_severity, "warning")
+        icon = severity_icons.get(gap_severity, "⚠️")
+        
+        if color == "error":
+            st.error(f"{icon} **Knowledge Gap Detected** ({gap_severity})")
+        else:
+            st.warning(f"{icon} **Partial Knowledge Coverage** ({gap_severity})")
+    
+    # Validation warnings
+    if warnings and not gap_detected:
+        with st.expander("ℹ️ Notes"):
+            for warning in warnings:
+                st.caption(f"• {warning}")
+
+
+def _render_sources(sources: List[Dict]):
+    """Render source documents with knowledge type indicators."""
+    with st.expander(f"📚 Sources ({len(sources)})"):
+        for i, source in enumerate(sources, 1):
+            # Knowledge type indicator
+            kt = source.get("knowledge_type", "explicit")
+            kt_icon = {
+                "tacit": "📚",
+                "decision": "📋",
+                "explicit": "📄",
+            }.get(kt, "📄")
+            
+            st.markdown(f"**{kt_icon} Source {i}:** {source.get('source', 'Unknown')}")
+            
+            # Decision metadata (Feature 2)
+            if kt == "decision":
+                decision_info = []
+                if source.get("decision_author"):
+                    decision_info.append(f"Author: {source['decision_author']}")
+                if source.get("decision_date"):
+                    decision_info.append(f"Date: {source['decision_date']}")
+                if decision_info:
+                    st.caption(" | ".join(decision_info))
+            
+            st.text(source.get('content_preview', '')[:300] + "...")
+            st.divider()
 
 
 def render_chat_history():
-    """Render the chat history."""
+    """Render the chat history with knowledge indicators."""
     for message in st.session_state.chat_history:
         render_chat_message(
             role=message["role"],
             content=message["content"],
             sources=message.get("sources"),
+            response_metadata=message.get("response_metadata"),
         )
 
 
@@ -216,7 +328,7 @@ def process_query(query: str, rag_chain: RAGChain) -> Optional[RAGResponse]:
 
 
 def render_chat_input(rag_chain: RAGChain):
-    """Render the chat input and handle submissions."""
+    """Render the chat input and handle submissions with knowledge features."""
     if prompt := st.chat_input("Ask a question about your organizational knowledge..."):
         # Add user message to history
         st.session_state.chat_history.append({
@@ -236,26 +348,44 @@ def render_chat_input(rag_chain: RAGChain):
             # Prepare sources summary
             sources = response.get_sources_summary() if response.source_documents else []
             
+            # === PREPARE KNOWLEDGE METADATA (Features 1, 2, 3) ===
+            response_metadata = {
+                "query_type": getattr(response, 'query_type', 'general'),
+                "confidence": response.confidence,
+                "knowledge_gap_detected": getattr(response, 'knowledge_gap_detected', False),
+                "gap_severity": getattr(response, 'gap_severity', None),
+                "validation_warnings": getattr(response, 'validation_warnings', []),
+                "knowledge_types_used": getattr(response, 'knowledge_types_used', []),
+            }
+            
             # Add assistant message to history
             st.session_state.chat_history.append({
                 "role": "assistant",
                 "content": response.answer,
                 "sources": sources,
+                "response_metadata": response_metadata,
             })
             
             # Display response
             st.markdown(response.answer)
             
+            # === DISPLAY KNOWLEDGE INDICATORS ===
+            _render_knowledge_indicators(response_metadata)
+            
             # Show sources if enabled
             if sources and st.session_state.show_sources:
-                with st.expander(f"📚 Sources ({len(sources)})"):
-                    for i, source in enumerate(sources, 1):
-                        st.markdown(f"**Source {i}:** {source.get('source', 'Unknown')}")
-                        st.text(source.get('content_preview', '')[:300] + "...")
-                        st.divider()
+                _render_sources(sources)
             
-            # Show processing time
-            st.caption(f"⏱️ Processed in {response.processing_time:.2f}s")
+            # Show processing time and additional metadata
+            col1, col2 = st.columns(2)
+            with col1:
+                st.caption(f"⏱️ Processed in {response.processing_time:.2f}s")
+            with col2:
+                if response.metadata.get("knowledge_features_used"):
+                    tacit = response.metadata.get("tacit_docs", 0)
+                    decision = response.metadata.get("decision_docs", 0)
+                    explicit = response.metadata.get("explicit_docs", 0)
+                    st.caption(f"📊 Tacit: {tacit} | Decision: {decision} | Explicit: {explicit}")
 
 
 def render_error_state():
@@ -287,18 +417,23 @@ def render_error_state():
 
 
 def render_welcome_message():
-    """Render welcome message for new sessions."""
+    """Render welcome message for new sessions with knowledge feature highlights."""
     if not st.session_state.chat_history:
         st.markdown("""
         ### 👋 Welcome to the AI Knowledge Continuity System!
         
         I'm here to help you access and understand your organization's collective knowledge.
         
+        **🧠 Intelligent Features:**
+        - **📚 Tacit Knowledge**: I prioritize lessons learned and best practices for experience-based questions
+        - **📋 Decision Tracing**: I explain the rationale, alternatives, and trade-offs behind decisions
+        - **🛡️ Gap Detection**: I'll tell you honestly when information isn't available, rather than guessing
+        
         **Try asking me:**
-        - "What is our deployment process?"
-        - "How do we handle customer escalations?"
-        - "What decisions were made about the architecture?"
-        - "Who should I contact about the billing system?"
+        - 💡 "What mistakes should I avoid when using Redis?"
+        - 📋 "Why did we choose Redis instead of RabbitMQ?"
+        - 📚 "What are the best practices for caching?"
+        - ❓ "What decisions were made about the architecture?"
         
         Just type your question below to get started!
         """)
@@ -338,19 +473,23 @@ def create_app():
             st.markdown("### 📊 Quick Stats")
             st.metric("Questions Asked", len([m for m in st.session_state.chat_history if m["role"] == "user"]))
             
+            # === KNOWLEDGE FEATURES STATUS ===
+            st.markdown("### 🧠 Knowledge Features")
+            st.success("✅ Tacit Knowledge")
+            st.success("✅ Decision Tracing")  
+            st.success("✅ Gap Detection")
+            
             # Quick actions
             st.markdown("### 🚀 Quick Actions")
             
             example_questions = [
-                "What are the main project guidelines?",
-                "How do I get started?",
-                "What are the best practices?",
+                ("📚 Lessons", "What lessons were learned from the backend team?"),
+                ("📋 Decision", "Why was Redis chosen over RabbitMQ?"),
+                ("⚠️ Pitfalls", "What common mistakes should I avoid?"),
             ]
             
-            for question in example_questions:
-                if st.button(f"💡 {question[:30]}...", key=f"example_{hash(question)}"):
-                    # This is a simplified version - in production, 
-                    # you'd want to properly handle this
+            for label, question in example_questions:
+                if st.button(f"{label}", key=f"example_{hash(question)}", use_container_width=True):
                     st.session_state.chat_history.append({
                         "role": "user",
                         "content": question,

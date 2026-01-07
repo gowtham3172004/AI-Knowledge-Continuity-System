@@ -31,7 +31,6 @@ env/
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
 *~
@@ -42,6 +41,8 @@ vector_store/faiss_index/
 # Logs
 logs/
 *.log
+backend.log
+nohup.out
 
 # OS
 .DS_Store
@@ -55,3 +56,12 @@ htmlcov/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Frontend build (will be built on Vercel)
+frontend/build/
+frontend/node_modules/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

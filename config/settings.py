@@ -63,6 +63,34 @@ class Settings(BaseSettings):
         default=0.5, ge=0.0, le=1.0,
         description="Minimum similarity score threshold"
     )
+    
+    # Knowledge Gap Detection Configuration
+    KNOWLEDGE_GAP_THRESHOLD: float = Field(
+        default=0.6, ge=0.0, le=1.0,
+        description="Minimum confidence to proceed with answer generation"
+    )
+    KNOWLEDGE_GAP_MIN_DOCS: int = Field(
+        default=2, ge=1, le=10,
+        description="Minimum relevant documents required for confident answer"
+    )
+    ENABLE_GAP_DETECTION: bool = Field(
+        default=True,
+        description="Enable knowledge gap detection and safe responses"
+    )
+    
+    # Knowledge Classification Configuration
+    ENABLE_KNOWLEDGE_CLASSIFICATION: bool = Field(
+        default=True,
+        description="Enable automatic knowledge type classification"
+    )
+    TACIT_PRIORITY_BOOST: float = Field(
+        default=1.3, ge=1.0, le=2.0,
+        description="Score multiplier for tacit knowledge when query matches"
+    )
+    DECISION_PRIORITY_BOOST: float = Field(
+        default=1.3, ge=1.0, le=2.0,
+        description="Score multiplier for decision docs when query matches"
+    )
 
     # LLM Generation Configuration
     MAX_NEW_TOKENS: int = Field(default=1024, ge=64, le=4096, description="Maximum tokens to generate")

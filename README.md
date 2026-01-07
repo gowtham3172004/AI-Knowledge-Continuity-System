@@ -1,103 +1,68 @@
 # AI Knowledge Continuity System
 
-> 🧠 Preventing Organizational Knowledge Loss Using LangChain-powered RAG
+> 🧠 Enterprise RAG System with Tacit Knowledge, Decision Traceability, and Knowledge Gap Detection
 
-A production-grade AI system that aggregates organizational knowledge from multiple sources, preserves employee expertise, and enables intelligent, context-aware querying using Large Language Models.
+A production-grade AI system powered by FastAPI and LangChain that preserves organizational knowledge, extracts lessons learned, traces architectural decisions, and prevents knowledge loss through intelligent gap detection.
 
 ## 🎯 Problem Statement
 
-Modern organizations suffer significant knowledge loss when experienced employees leave. Critical information often exists in fragmented formats such as documents, emails, chats, code repositories, and personal notes. Traditional documentation systems fail to capture tacit knowledge — the "how" and "why" behind decisions.
+Modern organizations suffer significant knowledge loss when experienced employees leave. Critical information exists in fragmented formats, and traditional systems fail to capture:
+- **Tacit knowledge**: Lessons learned, mistakes to avoid, unwritten expertise
+- **Decision context**: Why decisions were made, alternatives considered, trade-offs accepted
+- **Knowledge gaps**: When the system doesn't know enough to answer safely
 
-## ✨ Features
+## ✨ Three Enterprise Features
 
-- **Multi-Source Document Ingestion**: Support for PDF, TXT, MD, CSV files
-- **Intelligent Chunking**: Semantic text splitting with metadata preservation
-- **Vector Search**: FAISS-powered similarity search for fast retrieval
-- **Multiple LLM Providers**: Gemini (cloud), Local LLMs, HuggingFace API
-- **Conversation Memory**: Multi-session conversation history
-- **Source Attribution**: Track and cite sources in responses
-- **Production-Ready**: Logging, error handling, configuration management
-- **Modern UI**: Streamlit-based chat interface
+### 1. 📚 Tacit Knowledge Extraction
+- Automatically identifies and prioritizes experiential knowledge
+- Extracts insights from exit interviews, retrospectives, postmortems
+- Uses deterministic pattern matching (no LLM hallucinations)
+- 1.3x boost for tacit content in retrieval
+
+### 2. 📋 Decision Traceability
+- Parses Architecture Decision Records (ADRs)
+- Extracts structured metadata: ID, author, date, alternatives, trade-offs
+- Enables "Why?" queries about past decisions
+- Preserves full decision context
+
+### 3. ⚠️ Knowledge Gap Detection
+- Detects when the system lacks knowledge
+- Calculates confidence scores (0.0 - 1.0)
+- Returns safe responses instead of hallucinating
+- Logs all gaps for knowledge base improvement
 
 ## 🏗️ Architecture
 
+### Backend API (FastAPI)
 ```
-┌──────────────────────────┐
-│   Organizational Data     │
-│ PDFs | Docs | Markdown   │
-└────────────┬─────────────┘
-             ↓
-┌──────────────────────────┐
-│ Document Loading          │
-│ (Multi-format support)   │
-└────────────┬─────────────┘
-             ↓
-┌──────────────────────────┐
-│ Intelligent Chunking      │
-│ (Metadata enrichment)    │
-└────────────┬─────────────┘
-             ↓
-┌──────────────────────────┐
-│ Embedding Generation      │
-│ (Sentence Transformers)  │
-└────────────┬─────────────┘
-             ↓
-┌──────────────────────────┐
-│ Vector Database           │
-│ (FAISS)                  │
-└────────────┬─────────────┘
-             ↓
-┌──────────────────────────┐
-│ RAG Pipeline              │
-│ (Retrieval + Generation) │
-└────────────┬─────────────┘
-             ↓
-┌──────────────────────────┐
-│ LLM (Gemini/Local)        │
-└────────────┬─────────────┘
-             ↓
-┌──────────────────────────┐
-│ Answer + Sources + Memory │
-└──────────────────────────┘
+backend/
+├── main.py              # FastAPI app entry point
+├── api/
+│   ├── routes/          # query, ingest, health endpoints
+│   └── deps.py          # Dependency injection
+├── core/
+│   ├── config.py        # API settings
+│   ├── exceptions.py    # Typed exceptions
+│   ├── lifecycle.py     # Startup/shutdown
+│   └── logging.py       # Structured logging
+├── schemas/             # Pydantic models
+├── services/            # RAG & Ingest services
 ```
 
-## 📁 Project Structure
-
+### Core System
 ```
-ai-knowledge-continuity/
-│
-├── config/                 # Configuration management
-│   ├── __init__.py
-│   └── settings.py         # Pydantic settings with env support
-│
-├── core/                   # Core utilities
-│   ├── __init__.py
-│   ├── logger.py           # Structured logging
-│   └── exceptions.py       # Custom exceptions
-│
-├── data/                   # Your organizational documents
-│   ├── docs/
-│   └── notes/
-│
-├── ingestion/              # Document processing
-│   ├── __init__.py
-│   ├── load_documents.py   # Multi-format document loading
-│   └── chunk_documents.py  # Intelligent text chunking
-│
-├── vector_store/           # Vector database operations
-│   ├── __init__.py
-│   └── create_store.py     # FAISS store management
-│
-├── rag/                    # RAG pipeline components
-│   ├── __init__.py
-│   ├── llm.py              # LLM provider management
-│   ├── retriever.py        # Advanced retrieval strategies
-│   ├── prompt.py           # Prompt templates
-│   └── qa_chain.py         # Main RAG chain
-│
-├── memory/                 # Conversation memory
-│   ├── __init__.py
-│   └── conversation_memory.py
+├── knowledge/           # Enterprise features
+│   ├── knowledge_classifier.py  # Feature 1: Tacit detection
+│   ├── decision_parser.py       # Feature 2: ADR parsing
+│   └── gap_detector.py          # Feature 3: Gap detection
+├── rag/                 # RAG pipeline
+│   ├── qa_chain.py      # Main RAG chain
+│   ├── knowledge_retriever.py  # Knowledge-aware retrieval
+│   ├── llm.py           # LLM management
+│   └── retriever.py     # Advanced retrieval
+├── ingestion/           # Document processing
+├── vector_store/        # FAISS operations
+├── memory/              # Conversation memory
 │
 ├── evaluation/             # Quality metrics
 │   ├── __init__.py
@@ -133,6 +98,21 @@ pip install -r requirements.txt
 
 ### 2. Configuration
 
+## 🚀 Quick Start
+
+### 1. Install Dependencies
+
+```bash
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install requirements
+pip install -r requirements.txt
+```
+
+### 2. Configure Environment
+
 ```bash
 # Copy environment template
 cp .env.example .env
@@ -143,43 +123,61 @@ cp .env.example .env
 
 ### 3. Add Your Documents
 
-Place your organizational documents in the `data/` directory:
-- PDF files (.pdf)
-- Text files (.txt)
-- Markdown files (.md)
-- CSV files (.csv)
+Place organizational documents in `data/`:
+- Architecture Decision Records (ADRs)
+- Exit interviews, retrospectives
+- Meeting notes, design docs
+- PDF, TXT, MD, CSV formats supported
 
 ### 4. Run Ingestion
 
 ```bash
-# Process documents and create vector store
+# CLI: Process documents and create vector store
 python main.py --ingest
+
+# Or via FastAPI
+curl -X POST http://localhost:8000/api/ingest \
+  -H "X-API-Key: admin-secret-key" \
+  -H "Content-Type: application/json" \
+  -d '{"source": "directory_scan", "directory_path": "data"}'
 ```
 
-### 5. Query or Launch UI
+### 5. Start the API Server
 
 ```bash
-# Ask a question via CLI
-python main.py --query "What is our deployment process?"
+# Start FastAPI server
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 
-# Or launch the web interface
+# Access API docs
+open http://localhost:8000/docs
+```
+
+### 6. Query Knowledge
+
+```bash
+# Via API
+curl -X POST http://localhost:8000/api/query \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What lessons were learned from the backend project?"}'
+
+# Or via CLI
+python main.py --query "What lessons were learned?"
+
+# Or launch Streamlit UI
 python main.py --ui
 ```
 
-## 🔧 Configuration Options
+## 🔧 API Endpoints
 
-All settings can be configured via environment variables or `.env` file:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GEMINI_API_KEY` | Google Gemini API key | Required |
-| `LLM_PROVIDER` | LLM provider (gemini/local/huggingface) | gemini |
-| `EMBEDDING_MODEL` | HuggingFace embedding model | sentence-transformers/all-MiniLM-L6-v2 |
-| `CHUNK_SIZE` | Text chunk size | 1000 |
-| `CHUNK_OVERLAP` | Overlap between chunks | 200 |
-| `RETRIEVER_K` | Number of documents to retrieve | 5 |
-| `DATA_DIR` | Documents directory | data |
-| `VECTOR_STORE_PATH` | Vector store location | vector_store/faiss_index |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/query` | Query with knowledge features |
+| POST | `/api/query/batch` | Batch queries (max 10) |
+| POST | `/api/ingest` | Ingest documents (admin) |
+| GET | `/api/ingest/status` | Check ingestion progress |
+| GET | `/api/health` | Health check |
+| GET | `/api/health/ready` | Readiness probe |
+| GET | `/docs` | Interactive API documentation |
 
 ## 📖 Usage Examples
 
@@ -188,17 +186,42 @@ All settings can be configured via environment variables or `.env` file:
 ```python
 from rag.qa_chain import RAGChain
 
-# Initialize the RAG chain
+# Initialize RAG chain with knowledge features
 chain = RAGChain()
 
-# Ask a question
+# Query with all features enabled
 response = chain.query(
-    question="What are the best practices for code review?",
+    question="What lessons were learned from the backend project?",
+    use_knowledge_features=True,
     session_id="user123",
 )
 
+# Access response
 print(response.answer)
+print(f"Query Type: {response.query_type}")  # tacit, decision, general
+print(f"Confidence: {response.confidence}")
+print(f"Gap Detected: {response.knowledge_gap_detected}")
 print(f"Sources: {response.get_sources_summary()}")
+```
+
+### FastAPI Client
+
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:8000/api/query",
+    json={
+        "question": "Why did we choose PostgreSQL?",
+        "role": "developer",
+        "use_knowledge_features": True
+    }
+)
+
+data = response.json()
+print(data["answer"])
+print(data["decision_trace"])  # Full decision context
+print(data["knowledge_gap"])   # Gap detection result
 ```
 
 ### CLI Commands
@@ -211,26 +234,10 @@ python main.py --status
 python main.py --ingest
 
 # Query knowledge base
-python main.py --query "How do I handle customer escalations?"
+python main.py --query "What lessons were learned?"
 
-# Launch web UI
+# Launch Streamlit UI
 python main.py --ui
-```
-
-## 🔒 Using Local LLMs
-
-When you have adequate hardware (GPU with 16GB+ VRAM), you can use local LLMs:
-
-1. Install local LLM dependencies:
-```bash
-pip install accelerate bitsandbytes torch
-```
-
-2. Update `.env`:
-```
-LLM_PROVIDER=local
-LOCAL_LLM_MODEL=mistralai/Mistral-7B-Instruct-v0.2
-LOCAL_LLM_DEVICE=cuda
 ```
 
 3. Uncomment the local LLM code in `rag/llm.py`

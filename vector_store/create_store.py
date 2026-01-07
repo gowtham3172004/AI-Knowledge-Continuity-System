@@ -12,8 +12,19 @@ from typing import List, Optional, Tuple, Dict, Any
 from datetime import datetime
 
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
+
+try:
+    from langchain_huggingface import HuggingFaceEmbeddings
+    HAVE_HUGGINGFACE = True
+except ImportError:
+    HAVE_HUGGINGFACE = False
+
+try:
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+    HAVE_GOOGLE = True
+except ImportError:
+    HAVE_GOOGLE = False
 
 from config.settings import get_settings
 from core.logger import get_logger
@@ -27,11 +38,11 @@ class EmbeddingManager:
     Manages embedding model initialization and operations.
     
     Provides a singleton-like pattern for embedding model reuse
-    to avoid repeated model loading.
+    to avoid repeated model loading. Supports both HuggingFace and Google embeddings.
     """
     
     _instance: Optional['EmbeddingManager'] = None
-    _embeddings: Optional[HuggingFaceEmbeddings] = None
+    _embeddings: Optional[Any] = None
     
     def __new__(cls) -> 'EmbeddingManager':
         if cls._instance is None:
@@ -41,30 +52,49 @@ class EmbeddingManager:
     def __init__(self):
         self.settings = get_settings()
     
-    def get_embeddings(self) -> HuggingFaceEmbeddings:
+    def get_embeddings(self) -> Any:
         """
         Get or create the embedding model instance.
         
+        Tries to use HuggingFace embeddings first (if torch available),
+        falls back to Google Gemini embeddings.
+        
         Returns:
-            Initialized HuggingFace embeddings model.
+            Initialized embeddings model.
             
         Raises:
             EmbeddingError: If model initialization fails.
         """
         if self._embeddings is None:
             try:
-                logger.info(f"Loading embedding model: {self.settings.EMBEDDING_MODEL}")
+                # Try HuggingFace embeddings first
+                if HAVE_HUGGINGFACE:
+                    try:
+                        logger.info(f"Attempting HuggingFace embeddings: {self.settings.EMBEDDING_MODEL}")
+                        self._embeddings = HuggingFaceEmbeddings(
+                            model_name=self.settings.EMBEDDING_MODEL,
+                            model_kwargs={"device": self.settings.EMBEDDING_DEVICE},
+                            encode_kwargs={
+                                "normalize_embeddings": True,  # For cosine similarity
+                                "batch_size": 32,
+                            },
+                        )
+                        logger.info("HuggingFace embedding model loaded successfully")
+                        return self._embeddings
+                    except Exception as hf_error:
+                        logger.warning(f"HuggingFace embeddings failed: {hf_error}")
                 
-                self._embeddings = HuggingFaceEmbeddings(
-                    model_name=self.settings.EMBEDDING_MODEL,
-                    model_kwargs={"device": self.settings.EMBEDDING_DEVICE},
-                    encode_kwargs={
-                        "normalize_embeddings": True,  # For cosine similarity
-                        "batch_size": 32,
-                    },
-                )
+                # Fallback to Google embeddings
+                if HAVE_GOOGLE:
+                    logger.info("Using Google Gemini embeddings as fallback")
+                    self._embeddings = GoogleGenerativeAIEmbeddings(
+                        model="models/embedding-001",
+                        google_api_key=self.settings.GEMINI_API_KEY
+                    )
+                    logger.info("Google embedding model loaded successfully")
+                    return self._embeddings
                 
-                logger.info("Embedding model loaded successfully")
+                raise Exception("No embedding backend available (HuggingFace or Google)")
                 
             except Exception as e:
                 raise EmbeddingError(
