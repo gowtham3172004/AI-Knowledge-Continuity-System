@@ -83,9 +83,19 @@ async def health_check(
         # Check vector store
         try:
             start = time.perf_counter()
+            qdrant = app_state.qdrant_store
             vs = app_state.vector_store_manager
-            # Simple check - just verify the object exists and has expected attributes
-            if vs is not None:
+            # Check Qdrant first, then fallback to FAISS
+            if qdrant is not None:
+                stats = qdrant.get_stats()
+                latency = (time.perf_counter() - start) * 1000
+                components["vector_store"] = ComponentHealth(
+                    name="vector_store",
+                    status="healthy",
+                    latency_ms=latency,
+                    details={"type": "Qdrant", "total_vectors": stats.get("total_vectors", 0)},
+                )
+            elif vs is not None:
                 latency = (time.perf_counter() - start) * 1000
                 components["vector_store"] = ComponentHealth(
                     name="vector_store",

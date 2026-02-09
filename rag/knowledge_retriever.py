@@ -19,6 +19,14 @@ from config.settings import get_settings
 from core.logger import get_logger
 from core.exceptions import RetrievalError
 from rag.retriever import RetrieverManager, RetrievalResult
+
+# Import vector stores — prefer Qdrant, fallback to FAISS
+try:
+    from vector_store.qdrant_store import QdrantVectorStore
+    HAVE_QDRANT = True
+except ImportError:
+    HAVE_QDRANT = False
+
 from vector_store.create_store import VectorStoreManager
 
 # Import knowledge components
@@ -94,19 +102,29 @@ class KnowledgeAwareRetriever:
         base_retriever_manager: Optional[RetrieverManager] = None,
         enable_gap_detection: bool = True,
         enable_validation: bool = True,
+        qdrant_store: Optional[Any] = None,
     ):
         """
         Initialize the knowledge-aware retriever.
         
         Args:
-            vector_store_manager: Vector store manager instance.
+            vector_store_manager: Legacy FAISS vector store manager instance.
             base_retriever_manager: Base retriever manager.
             enable_gap_detection: Whether to detect knowledge gaps.
             enable_validation: Whether to validate knowledge before return.
+            qdrant_store: QdrantVectorStore instance (preferred over FAISS).
         """
         self.settings = get_settings()
         
-        # Initialize base retriever
+        # Prefer Qdrant if available
+        self.qdrant_store = qdrant_store
+        if self.qdrant_store is None and HAVE_QDRANT:
+            try:
+                self.qdrant_store = QdrantVectorStore()
+            except Exception:
+                pass
+        
+        # Keep legacy FAISS as fallback
         self.vector_store_manager = vector_store_manager or VectorStoreManager()
         self.base_retriever = base_retriever_manager or RetrieverManager(
             vector_store_manager=self.vector_store_manager
@@ -148,6 +166,7 @@ class KnowledgeAwareRetriever:
         strategy: str = "similarity",
         apply_knowledge_boost: bool = True,
         department: Optional[str] = None,
+        user_id: Optional[int] = None,
         **kwargs,
     ) -> KnowledgeAwareRetrievalResult:
         """
@@ -166,6 +185,7 @@ class KnowledgeAwareRetriever:
             strategy: Base retrieval strategy.
             apply_knowledge_boost: Whether to adjust scores by knowledge type.
             department: Optional department context for gap logging.
+            user_id: Filter results to this user's documents (Qdrant).
             **kwargs: Additional arguments for base retriever.
             
         Returns:
@@ -173,18 +193,26 @@ class KnowledgeAwareRetriever:
         """
         k = k or self.settings.RETRIEVER_K
         
-        logger.info(f"Knowledge-aware retrieval: '{query[:50]}...'")
+        logger.info(f"Knowledge-aware retrieval: '{query[:50]}...' user_id={user_id}")
         
         try:
             # Step 1: Analyze query intent
             query_type, query_confidence = self._analyze_query_intent(query)
             
-            # Step 2: Retrieve with scores
-            docs_with_scores = self.vector_store_manager.search(
-                query=query,
-                k=k * 2,  # Fetch more to allow for filtering
-                score_threshold=0.0,  # Don't filter yet, we'll re-rank
-            )
+            # Step 2: Retrieve with scores (use Qdrant if available and user_id provided)
+            if self.qdrant_store and user_id is not None:
+                docs_with_scores = self.qdrant_store.search(
+                    query=query,
+                    user_id=user_id,
+                    k=k * 2,
+                    score_threshold=0.0,
+                )
+            else:
+                docs_with_scores = self.vector_store_manager.search(
+                    query=query,
+                    k=k * 2,
+                    score_threshold=0.0,
+                )
             
             if not docs_with_scores:
                 return self._create_empty_result(query, query_type, query_confidence)

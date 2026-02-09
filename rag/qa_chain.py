@@ -195,6 +195,7 @@ class RAGChain:
         include_sources: bool = True,
         use_memory: bool = True,
         use_knowledge_features: bool = True,
+        user_id: Optional[int] = None,
     ) -> RAGResponse:
         """
         Process a question through the RAG pipeline.
@@ -212,6 +213,7 @@ class RAGChain:
             include_sources: Whether to include source documents.
             use_memory: Whether to use conversation memory.
             use_knowledge_features: Whether to use tacit/decision/gap features.
+            user_id: Filter retrieval to this user's documents.
             
         Returns:
             RAGResponse with answer, sources, and knowledge metadata.
@@ -220,6 +222,39 @@ class RAGChain:
         logger.info(f"Processing query: {question[:100]}...")
         
         try:
+            # Check for greetings and off-topic questions first
+            question_lower = question.lower().strip()
+            greetings = ['hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon', 'good evening']
+            off_topic_patterns = ['who are you', 'what are you', 'what can you do', 'help', 'how do you work']
+            
+            is_greeting = any(question_lower == greeting or question_lower.startswith(greeting + ' ') for greeting in greetings)
+            is_off_topic = any(pattern in question_lower for pattern in off_topic_patterns)
+            
+            if is_greeting or (is_off_topic and len(question_lower.split()) < 10):
+                processing_time = (datetime.now() - start_time).total_seconds()
+                helpful_response = (
+                    "Hello! I'm your Knowledge Transfer Assistant. "
+                    "I help you retrieve information from the documents you've uploaded to the system.\n\n"
+                    "I can answer questions about:\n"
+                    "• Technical documentation and architecture\n"
+                    "• Design decisions and their rationale\n"
+                    "• Project history and lessons learned\n"
+                    "• Meeting notes and team knowledge\n\n"
+                    "Please ask me questions related to your uploaded documents, and I'll provide accurate answers with sources."
+                )
+                return RAGResponse(
+                    answer=helpful_response,
+                    source_documents=[],
+                    query=question,
+                    confidence=1.0,
+                    processing_time=processing_time,
+                    metadata={
+                        "response_type": "greeting_or_help",
+                        "session_id": session_id,
+                    },
+                    query_type="general",
+                )
+            
             # Step 1: Get conversation history if using memory
             chat_history = ""
             if use_memory:
@@ -236,6 +271,7 @@ class RAGChain:
                     include_sources=include_sources,
                     chat_history=chat_history,
                     start_time=start_time,
+                    user_id=user_id,
                 )
             
             # === STANDARD RETRIEVAL (backward compatibility) ===
@@ -318,6 +354,7 @@ class RAGChain:
         include_sources: bool,
         chat_history: str,
         start_time: datetime,
+        user_id: Optional[int] = None,
     ) -> RAGResponse:
         """
         Process query with knowledge-aware features.
@@ -334,15 +371,17 @@ class RAGChain:
             include_sources: Whether to include sources.
             chat_history: Formatted chat history.
             start_time: Query start time.
+            user_id: Filter retrieval to this user's documents.
             
         Returns:
             RAGResponse with knowledge-aware metadata.
         """
-        # Step 1: Knowledge-aware retrieval
+        # Step 1: Knowledge-aware retrieval (with user_id for per-user isolation)
         retrieval_result: KnowledgeAwareRetrievalResult = self.knowledge_retriever.retrieve(
             query=question,
             k=k,
             apply_knowledge_boost=True,
+            user_id=user_id,
         )
         
         # Step 2: Extract knowledge metadata

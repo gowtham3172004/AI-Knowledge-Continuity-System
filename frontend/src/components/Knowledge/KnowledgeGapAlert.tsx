@@ -18,13 +18,13 @@ export const KnowledgeGapAlert: React.FC<KnowledgeGapAlertProps> = ({ gapInfo })
   const getSeverityStyles = () => {
     switch (gapInfo.severity) {
       case GapSeverity.CRITICAL:
-        return 'bg-red-50 border-red-300 text-red-900';
+        return 'bg-gradient-to-r from-red-50 to-red-100 border-red-400 text-red-900 shadow-lg shadow-red-500/10';
       case GapSeverity.HIGH:
-        return 'bg-orange-50 border-orange-300 text-orange-900';
+        return 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-400 text-orange-900 shadow-lg shadow-orange-500/10';
       case GapSeverity.MEDIUM:
-        return 'bg-warning-50 border-warning-300 text-warning-900';
+        return 'bg-gradient-to-r from-warning-50 to-yellow-100 border-warning-400 text-warning-900 shadow-lg shadow-warning-500/10';
       default:
-        return 'bg-yellow-50 border-yellow-300 text-yellow-900';
+        return 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-400 text-yellow-900 shadow-lg shadow-yellow-500/10';
     }
   };
 
@@ -36,28 +36,36 @@ export const KnowledgeGapAlert: React.FC<KnowledgeGapAlertProps> = ({ gapInfo })
   };
 
   return (
-    <div className={`rounded-lg border-2 p-4 ${getSeverityStyles()}`}>
-      <div className="flex items-start space-x-3">
-        {getSeverityIcon()}
+    <div className={`rounded-2xl border-2 p-6 transition-all duration-300 hover:scale-[1.01] ${getSeverityStyles()}`}>
+      <div className="flex items-start space-x-4">
+        <div className="flex-shrink-0">
+          {getSeverityIcon()}
+        </div>
         <div className="flex-1">
-          <h4 className="font-semibold text-sm mb-1">Knowledge Gap Detected</h4>
-          <p className="text-sm">
+          <h4 className="font-bold text-base mb-2 flex items-center space-x-2">
+            <span>Knowledge Gap Detected</span>
+            <span className="bg-white/50 px-2 py-0.5 rounded-lg text-xs font-bold uppercase">
+              {gapInfo.severity}
+            </span>
+          </h4>
+          <p className="text-sm leading-relaxed font-medium">
             {gapInfo.reason ||
               'This knowledge is currently missing or incomplete in the organization.'}
           </p>
-          <div className="mt-2 flex items-center space-x-4 text-xs">
-            <span>
-              <strong>Confidence:</strong> {(gapInfo.confidence_score * 100).toFixed(1)}%
+          <div className="mt-3 flex items-center space-x-6 text-xs font-semibold">
+            <span className="flex items-center space-x-1">
+              <strong>Confidence:</strong>
+              <span className="bg-white/50 px-2 py-0.5 rounded">{(gapInfo.confidence_score * 100).toFixed(1)}%</span>
             </span>
             {gapInfo.severity && (
-              <span>
-                <strong>Severity:</strong>{' '}
+              <span className="flex items-center space-x-1">
+                <strong>Severity:</strong>
                 <span className="uppercase">{gapInfo.severity}</span>
               </span>
             )}
           </div>
-          <p className="text-xs mt-2 opacity-75">
-            This response may be incomplete or uncertain. Consider consulting subject matter
+          <p className="text-xs mt-3 bg-white/30 p-3 rounded-lg font-medium leading-relaxed">
+            💡 This response may be incomplete or uncertain. Consider consulting subject matter
             experts or documenting this knowledge for future reference.
           </p>
         </div>

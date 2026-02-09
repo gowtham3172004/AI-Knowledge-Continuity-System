@@ -88,7 +88,7 @@ class EmbeddingManager:
                 if HAVE_GOOGLE:
                     logger.info("Using Google Gemini embeddings as fallback")
                     self._embeddings = GoogleGenerativeAIEmbeddings(
-                        model="models/embedding-001",
+                        model="models/gemini-embedding-001",
                         google_api_key=self.settings.GEMINI_API_KEY
                     )
                     logger.info("Google embedding model loaded successfully")

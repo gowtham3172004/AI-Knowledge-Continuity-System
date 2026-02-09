@@ -27,7 +27,12 @@ from backend.core.exceptions import (
 )
 from backend.core.lifecycle import ApplicationState, lifespan
 from backend.api.routes import query_router, ingest_router, health_router
+from backend.api.routes.auth import router as auth_router
+from backend.api.routes.documents import router as documents_router
+from backend.api.routes.dashboard import router as dashboard_router
+from backend.api.routes.conversations import router as conversations_router
 from backend.api.routes.health import set_startup_time
+from backend.db import init_db
 
 
 # Setup logging
@@ -81,16 +86,23 @@ def create_app() -> FastAPI:
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=api_settings.CORS_ORIGINS,
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
     
+    # Initialize database
+    init_db()
+    
     # Register exception handlers
     register_exception_handlers(app)
     
     # Register routes
+    app.include_router(auth_router, prefix="/api")
+    app.include_router(documents_router, prefix="/api")
+    app.include_router(dashboard_router, prefix="/api")
+    app.include_router(conversations_router, prefix="/api")
     app.include_router(query_router, prefix="/api")
     app.include_router(ingest_router, prefix="/api")
     app.include_router(health_router, prefix="/api")

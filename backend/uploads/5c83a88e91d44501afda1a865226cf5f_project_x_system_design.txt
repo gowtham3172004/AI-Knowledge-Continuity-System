@@ -1,0 +1,27 @@
+Project X – High-Level System Design
+
+Project X is a web-based internal analytics platform used by multiple departments.
+
+Architecture Overview:
+- Frontend: React-based SPA
+- Backend: Python FastAPI services
+- Database: PostgreSQL for transactional data
+- Cache Layer: Redis
+- Authentication: JWT-based authentication
+
+Key Design Decisions:
+1. Microservices architecture was chosen over a monolithic design to allow independent scaling.
+2. Services communicate via REST APIs.
+3. Redis is used to cache expensive database queries.
+
+Scalability Considerations:
+- Stateless backend services allow horizontal scaling.
+- Database read replicas were planned for future growth.
+
+Known Limitations:
+- Inter-service communication increases operational complexity.
+- Requires strong API versioning discipline.
+
+Maintainer Notes:
+Ensure backward compatibility when modifying APIs, as multiple teams depend on them.
+

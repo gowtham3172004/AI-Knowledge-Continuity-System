@@ -21,6 +21,13 @@ from backend.schemas.query import (
     QueryResponse,
     QueryErrorResponse,
 )
+from backend.auth import get_current_user
+
+# Import DB for gap logging
+try:
+    from backend.db import log_knowledge_gap
+except ImportError:
+    log_knowledge_gap = None
 
 
 router = APIRouter(prefix="/query", tags=["query"])
@@ -75,6 +82,7 @@ async def query(
     request: QueryRequest,
     rag_service: Annotated[RAGServiceDep, Depends(get_rag_service)],
     validation: Annotated[ValidationServiceDep, Depends(get_validation)],
+    user=Depends(get_current_user),
 ) -> QueryResponse:
     """
     Query the RAG knowledge system.
@@ -83,6 +91,7 @@ async def query(
         request: Query request with question and options
         rag_service: Injected RAG service
         validation: Injected validation service
+        user: Authenticated user (used for per-user retrieval)
         
     Returns:
         QueryResponse with answer and knowledge features
@@ -108,8 +117,8 @@ async def query(
     request.conversation_id = validated_conversation_id
     request.department = validated_department
     
-    # Execute query
-    response = await rag_service.query(request)
+    # Execute query (pass user_id for per-user vector filtering)
+    response = await rag_service.query(request, user_id=user["id"])
     
     # Log knowledge gap if detected
     if response.knowledge_gap.detected:
@@ -118,6 +127,16 @@ async def query(
             confidence_score=response.knowledge_gap.confidence_score,
             severity=response.knowledge_gap.severity,
         )
+        # Persist gap to database for dashboard tracking
+        if log_knowledge_gap:
+            try:
+                log_knowledge_gap(
+                    query=request.question,
+                    confidence_score=response.knowledge_gap.confidence_score,
+                    severity=response.knowledge_gap.severity or "medium",
+                )
+            except Exception:
+                pass
     
     # Log response
     api_logger.response(

@@ -24,7 +24,8 @@ class Settings(BaseSettings):
 
     # Data Paths
     DATA_DIR: str = Field(default="data", description="Directory containing organizational documents")
-    VECTOR_STORE_PATH: str = Field(default="vector_store/faiss_index", description="Path to save/load vector store")
+    VECTOR_STORE_PATH: str = Field(default="vector_store/faiss_index", description="Path to save/load vector store (legacy FAISS)")
+    QDRANT_PATH: str = Field(default="vector_store/qdrant_data", description="Path to Qdrant local storage")
 
     # Embedding Configuration
     EMBEDDING_MODEL: str = Field(

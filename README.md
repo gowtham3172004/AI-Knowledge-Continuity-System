@@ -89,11 +89,13 @@ git clone https://github.com/yourusername/ai-knowledge-continuity-system.git
 cd ai-knowledge-continuity-system
 
 # Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Note: Python 3.12 is recommended for local embedding support (sentence-transformers)
+python3.12 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+pip install sentence-transformers  # Required for local embeddings
 ```
 
 ### 2. Configuration

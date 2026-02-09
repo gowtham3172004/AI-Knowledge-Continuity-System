@@ -43,22 +43,25 @@ class ApplicationState:
             try:
                 # Import here to avoid circular imports
                 from rag.qa_chain import RAGChain
-                from vector_store.create_store import VectorStoreManager
+                from vector_store.qdrant_store import QdrantVectorStore
                 from backend.services.rag_service import RAGService
                 from backend.services.ingest_service import IngestService
                 
-                # Initialize RAG chain (this may take a few seconds)
+                # Initialize Qdrant vector store (per-user, production-grade)
+                logger.info("Initializing Qdrant vector store...")
+                self.qdrant_store = QdrantVectorStore()
+                
+                # Initialize RAG chain
                 logger.info("Initializing RAG chain...")
                 self.rag_chain = RAGChain()
                 
-                # Initialize vector store manager
-                logger.info("Initializing vector store manager...")
-                self.vector_store_manager = VectorStoreManager()
+                # Keep legacy reference for backward compatibility
+                self.vector_store_manager = None
                 
                 # Initialize service adapters
                 logger.info("Initializing service adapters...")
                 self.rag_service = RAGService(self.rag_chain)
-                self.ingest_service = IngestService(self.vector_store_manager)
+                self.ingest_service = IngestService(self.qdrant_store)
                 
                 self.is_ready = True
                 logger.info("Application state initialized successfully")

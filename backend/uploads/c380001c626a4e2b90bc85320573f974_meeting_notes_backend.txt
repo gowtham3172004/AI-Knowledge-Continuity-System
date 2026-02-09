@@ -1,0 +1,20 @@
+Backend Team Meeting – Design Discussion
+
+Date: 2023-07-20
+Participants: Backend Lead, DevOps Engineer, Senior Developer
+
+Topics Discussed:
+- Database performance bottlenecks observed during peak usage.
+- Proposal to introduce Redis caching layer.
+
+Key Points:
+- Most slow queries were repeated read operations.
+- Redis would significantly reduce database load.
+- Cache invalidation strategy needs to be carefully designed.
+
+Decision:
+Proceed with Redis integration and monitor performance for two weeks.
+
+Action Items:
+- Backend Lead to define caching rules.
+- DevOps to provision Redis cluster.

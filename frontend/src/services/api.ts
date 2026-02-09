@@ -1,7 +1,7 @@
 /**
  * API Service for AI Knowledge Continuity System
  * 
- * Centralized HTTP client for backend communication.
+ * Centralized HTTP client for backend communication with auth support.
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
@@ -32,9 +32,20 @@ class APIClient {
       },
     });
 
-    // Request interceptor for logging (development only)
+    // Request interceptor — inject auth token automatically
     this.client.interceptors.request.use(
       (config) => {
+        // Inject auth token from localStorage
+        try {
+          const authData = localStorage.getItem('auth');
+          if (authData) {
+            const { token } = JSON.parse(authData);
+            if (token) {
+              config.headers.Authorization = `Bearer ${token}`;
+            }
+          }
+        } catch {}
+
         if (process.env.NODE_ENV === 'development') {
           console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, config.data);
         }
@@ -66,17 +77,19 @@ class APIClient {
    */
   private formatError(error: AxiosError<ErrorResponse>): Error {
     if (error.response) {
-      // Server responded with error
-      const errorData = error.response.data?.error;
+      const data = error.response.data as any;
+      // Handle FastAPI validation detail
+      if (data?.detail) {
+        return new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail));
+      }
+      const errorData = data?.error;
       if (errorData) {
         return new Error(errorData.message || 'Server error occurred');
       }
       return new Error(`Server error: ${error.response.status}`);
     } else if (error.request) {
-      // Request made but no response
       return new Error('Unable to reach the server. Please check your connection.');
     } else {
-      // Something else happened
       return new Error(error.message || 'An unexpected error occurred');
     }
   }
@@ -84,7 +97,7 @@ class APIClient {
   /**
    * Query the knowledge system
    */
-  async query(request: QueryRequest): Promise<QueryResponse> {
+  query = async (request: QueryRequest): Promise<QueryResponse> => {
     const response = await this.client.post<QueryResponse>('/query', request);
     return response.data;
   }
@@ -92,7 +105,7 @@ class APIClient {
   /**
    * Ingest new documents
    */
-  async ingest(request: IngestRequest): Promise<IngestResponse> {
+  ingest = async (request: IngestRequest): Promise<IngestResponse> => {
     const response = await this.client.post<IngestResponse>('/ingest', request);
     return response.data;
   }
@@ -100,7 +113,7 @@ class APIClient {
   /**
    * Health check
    */
-  async healthCheck(): Promise<HealthResponse> {
+  healthCheck = async (): Promise<HealthResponse> => {
     const response = await this.client.get<HealthResponse>('/health');
     return response.data;
   }
@@ -108,7 +121,7 @@ class APIClient {
   /**
    * Readiness check
    */
-  async readinessCheck(): Promise<HealthResponse> {
+  readinessCheck = async (): Promise<HealthResponse> => {
     const response = await this.client.get<HealthResponse>('/health/ready');
     return response.data;
   }
@@ -116,9 +129,56 @@ class APIClient {
   /**
    * Get system info
    */
-  async getSystemInfo(): Promise<HealthResponse> {
+  getSystemInfo = async (): Promise<HealthResponse> => {
     const response = await this.client.get<HealthResponse>('/health/info');
     return response.data;
+  }
+
+  // ==================== Conversation APIs ====================
+
+  /**
+   * List all conversations for current user
+   */
+  listConversations = async (): Promise<any[]> => {
+    const response = await this.client.get('/conversations/');
+    return response.data;
+  }
+
+  /**
+   * Create a new conversation
+   */
+  createConversation = async (id: string, title: string): Promise<any> => {
+    const response = await this.client.post('/conversations/', { id, title });
+    return response.data;
+  }
+
+  /**
+   * Update conversation title
+   */
+  updateConversation = async (id: string, title: string): Promise<void> => {
+    await this.client.put(`/conversations/${id}`, { title });
+  }
+
+  /**
+   * Delete a conversation
+   */
+  deleteConversation = async (id: string): Promise<void> => {
+    await this.client.delete(`/conversations/${id}`);
+  }
+
+  /**
+   * Get messages for a conversation
+   */
+  getMessages = async (conversationId: string): Promise<any[]> => {
+    const response = await this.client.get(`/conversations/${conversationId}/messages`);
+    return response.data;
+  }
+
+  /**
+   * Save a message to a conversation
+   */
+  saveMessage = async (conversationId: string, msg: { id: string; role: string; content: string; response_data?: string }): Promise<void> => {
+    await this.client.post(`/conversations/${conversationId}/messages`, msg);
   }
 }
 

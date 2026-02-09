@@ -1,0 +1,23 @@
+Employee Exit Knowledge Transfer Document
+
+Employee: Rahul Verma
+Role: Senior Backend Engineer
+Experience: 5 years
+
+Key Knowledge Areas:
+- Designed caching strategy using Redis.
+- Implemented API rate limiting.
+- Optimized PostgreSQL queries for analytics workloads.
+
+Important Insights:
+- Redis TTL values were carefully tuned to balance freshness and performance.
+- Avoid caching user-specific sensitive data.
+- Batch database writes improved throughput significantly.
+
+Common Pitfalls:
+- Forgetting cache invalidation caused stale data issues in early versions.
+- Overuse of Redis for complex workflows should be avoided.
+
+Recommendations for New Engineers:
+- Understand data access patterns before adding caching.
+- Always document architectural decisions.

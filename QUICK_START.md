@@ -16,7 +16,8 @@
 cd "/Users/macbook/Documents/Final-Year Project/AI Knowledge Continuity System"
 
 # Activate virtual environment
-source .venv/bin/activate
+# Recommended: Python 3.12 for local embedding support
+source .venv312/bin/activate 
 
 # Start FastAPI server
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000

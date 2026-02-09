@@ -72,6 +72,7 @@ class RAGService:
     async def query(
         self,
         request: QueryRequest,
+        user_id: Optional[int] = None,
     ) -> QueryResponse:
         """
         Execute a query against the RAG system.
@@ -107,6 +108,7 @@ class RAGService:
                     self._executor,
                     self._execute_query,
                     request,
+                    user_id,
                 ),
                 timeout=self._query_timeout,
             )
@@ -153,12 +155,13 @@ class RAGService:
                 details={"original_error": str(e)}
             )
     
-    def _execute_query(self, request: QueryRequest) -> Dict[str, Any]:
+    def _execute_query(self, request: QueryRequest, user_id: Optional[int] = None) -> Dict[str, Any]:
         """
         Execute query synchronously (called in thread pool).
         
         Args:
             request: Query request
+            user_id: User ID for per-user retrieval
             
         Returns:
             Raw response dictionary from RAGChain
@@ -176,6 +179,7 @@ class RAGService:
             include_sources=True,
             use_memory=request.conversation_id is not None,
             use_knowledge_features=use_features,
+            user_id=user_id,
         )
         
         # Convert RAGResponse dataclass to dict
