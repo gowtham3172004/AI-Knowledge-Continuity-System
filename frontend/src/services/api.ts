@@ -13,29 +13,10 @@ import {
   HealthResponse,
   ErrorResponse,
 } from '../types/api';
+import { API_URL } from '../config/api.config';
 
-// Normalize API URL - ensures proper https:// prefix
-const normalizeBaseURL = (url: string): string => {
-  if (!url) return 'http://localhost:8000';
-  
-  let normalized = url.trim().replace(/\/$/, '');
-  
-  // If URL doesn't have protocol, add it
-  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-    normalized = normalized.includes('localhost') 
-      ? `http://${normalized}` 
-      : `https://${normalized}`;
-  }
-  
-  return normalized;
-};
-
-// Configure base URL from environment or default to localhost
-const RAW_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-const BASE_URL = normalizeBaseURL(RAW_BASE_URL);
-
-// Debug log - remove after confirming fix works
-console.log('[API] Base URL Config:', { raw: RAW_BASE_URL, normalized: BASE_URL });
+// Use centralized API URL config
+const BASE_URL = API_URL;
 
 /**
  * API Client Configuration

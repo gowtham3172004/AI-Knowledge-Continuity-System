@@ -10,8 +10,9 @@ import { Send, ArrowRight, Brain, RefreshCw } from 'lucide-react';
 import { Message } from '../../types/api';
 import { MessageBubble } from './MessageBubble';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_URL } from '../../config/api.config';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API = API_URL;
 
 interface SuggestedQuestion {
   question: string;

@@ -18,8 +18,9 @@ import {
   TrendingUp, HelpCircle, Sparkles, FolderOpen
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API_URL } from '../config/api.config';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API = API_URL;
 
 interface SuggestedQuestion {
   question: string;

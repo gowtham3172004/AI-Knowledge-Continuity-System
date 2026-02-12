@@ -3,30 +3,10 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { API_URL } from '../config/api.config';
 
-// Normalize API URL - ensures proper https:// prefix
-const normalizeURL = (url: string): string => {
-  if (!url) return 'http://localhost:8000';
-  
-  let normalized = url.trim().replace(/\/$/, '');
-  
-  // If URL doesn't have protocol, add it
-  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-    // Add https:// for non-localhost URLs
-    normalized = normalized.includes('localhost') 
-      ? `http://${normalized}` 
-      : `https://${normalized}`;
-  }
-  
-  return normalized;
-};
-
-// Get API URL from environment
-const RAW_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-const API = normalizeURL(RAW_API_URL);
-
-// Debug log - remove after confirming fix works
-console.log('[Auth] API URL Config:', { raw: RAW_API_URL, normalized: API });
+// Use centralized API URL config
+const API = API_URL;
 
 export interface User {
   id: number;
