@@ -83,13 +83,16 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     
-    # Configure CORS
+    # Configure CORS - Allow all origins for production
+    # Note: allow_credentials=True requires explicit origins, not "*"
+    # So we set allow_credentials=False to allow wildcard origins
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
+        expose_headers=["*"],
     )
     
     # Initialize database
