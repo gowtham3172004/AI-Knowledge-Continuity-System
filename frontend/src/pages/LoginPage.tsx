@@ -4,9 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface LoginPageProps {
   onBackToHome?: () => void;
+  onSwitchToSignup?: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onBackToHome }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onBackToHome, onSwitchToSignup }) => {
   const { login, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -88,6 +89,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onBackToHome }) => {
           <p className="mt-6 text-xs text-gray-500 text-center">
             Demo: dev@test.com / pass123
           </p>
+
+          {onSwitchToSignup && (
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{' '}
+                <button
+                  onClick={onSwitchToSignup}
+                  className="text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  Sign Up
+                </button>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

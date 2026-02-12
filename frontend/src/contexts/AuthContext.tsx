@@ -59,33 +59,71 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [user, token]);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch(`${API}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Login failed');
+    try {
+      const res = await fetch(`${API}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      // Check if response has content before parsing
+      const text = await res.text();
+      
+      if (!res.ok) {
+        let errorMessage = 'Login failed';
+        try {
+          const err = JSON.parse(text);
+          errorMessage = err.detail || err.message || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+      
+      // Parse success response
+      const data = JSON.parse(text);
+      setUser(data.user);
+      setToken(data.token);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Network error. Please check if the backend is running and try again.');
     }
-    const data = await res.json();
-    setUser(data.user);
-    setToken(data.token);
   };
 
   const register = async (email: string, password: string, fullName: string, role: string) => {
-    const res = await fetch(`${API}/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, full_name: fullName, role }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Registration failed');
+    try {
+      const res = await fetch(`${API}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, full_name: fullName, role }),
+      });
+      
+      // Check if response has content before parsing
+      const text = await res.text();
+      
+      if (!res.ok) {
+        let errorMessage = 'Registration failed';
+        try {
+          const err = JSON.parse(text);
+          errorMessage = err.detail || err.message || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+      
+      // Parse success response
+      const data = JSON.parse(text);
+      setUser(data.user);
+      setToken(data.token);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Network error. Please check if the backend is running and try again.');
     }
-    const data = await res.json();
-    setUser(data.user);
-    setToken(data.token);
   };
 
   const logout = () => {

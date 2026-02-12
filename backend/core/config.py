@@ -37,6 +37,7 @@ class APISettings(BaseSettings):
             "http://localhost:3000",
             "http://localhost:8501",
             "https://*.vercel.app",  # Allow all Vercel preview deployments
+            "https://*.railway.app",  # Allow all Railway deployments
         ],
         description="Allowed CORS origins"
     )

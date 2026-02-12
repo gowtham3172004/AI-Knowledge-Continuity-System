@@ -9,12 +9,14 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { SignupPage } from './pages/SignupPage';
 import { ChatPage } from './pages/ChatPage';
 import { DocumentsPage } from './pages/DocumentsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import './styles/global.css';
 
 type Page = 'home' | 'chat' | 'documents' | 'dashboard';
+type AuthPage = 'login' | 'signup';
 
 const AuthenticatedApp: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('chat');
@@ -47,7 +49,7 @@ const AuthenticatedApp: React.FC = () => {
 
 const AppRouter: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  const [showLogin, setShowLogin] = useState(false);
+  const [authPage, setAuthPage] = useState<AuthPage | null>(null);
 
   if (isLoading) {
     return (
@@ -64,12 +66,26 @@ const AppRouter: React.FC = () => {
     return <AuthenticatedApp />;
   }
 
-  // Show Login if user clicked "Get Started", otherwise show HomePage
-  if (showLogin) {
-    return <LoginPage onBackToHome={() => setShowLogin(false)} />;
+  // Show Login/Signup if user navigated to auth pages, otherwise show HomePage
+  if (authPage === 'login') {
+    return (
+      <LoginPage
+        onBackToHome={() => setAuthPage(null)}
+        onSwitchToSignup={() => setAuthPage('signup')}
+      />
+    );
   }
 
-  return <HomePage onGetStarted={() => setShowLogin(true)} />;
+  if (authPage === 'signup') {
+    return (
+      <SignupPage
+        onBackToLogin={() => setAuthPage('login')}
+        onBackToHome={() => setAuthPage(null)}
+      />
+    );
+  }
+
+  return <HomePage onGetStarted={() => setAuthPage('login')} />;
 };
 
 function App() {
