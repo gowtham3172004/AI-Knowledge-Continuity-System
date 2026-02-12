@@ -4,7 +4,16 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// Normalize API URL
+const normalizeURL = (url: string): string => {
+  let normalized = url.replace(/\/$/, '');
+  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+    normalized = normalized.includes('localhost') ? `http://${normalized}` : `https://${normalized}`;
+  }
+  return normalized;
+};
+
+const API = normalizeURL(process.env.REACT_APP_API_URL || 'http://localhost:8000');
 
 export interface User {
   id: number;

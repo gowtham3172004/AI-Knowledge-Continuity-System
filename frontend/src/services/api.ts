@@ -17,6 +17,21 @@ import {
 // Configure base URL from environment or default to localhost
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
+// Ensure BASE_URL has protocol and no trailing slash
+const normalizeBaseURL = (url: string): string => {
+  // Remove trailing slash
+  let normalized = url.replace(/\/$/, '');
+  
+  // Add https:// if no protocol specified and not localhost
+  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+    normalized = normalized.includes('localhost') ? `http://${normalized}` : `https://${normalized}`;
+  }
+  
+  return normalized;
+};
+
+const NORMALIZED_BASE_URL = normalizeBaseURL(BASE_URL);
+
 /**
  * API Client Configuration
  */
@@ -25,7 +40,7 @@ class APIClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: `${BASE_URL}/api`,
+      baseURL: `${NORMALIZED_BASE_URL}/api`,
       timeout: 60000, // 60 seconds for LLM responses
       headers: {
         'Content-Type': 'application/json',
