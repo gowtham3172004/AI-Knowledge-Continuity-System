@@ -4,16 +4,29 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-// Normalize API URL
+// Normalize API URL - ensures proper https:// prefix
 const normalizeURL = (url: string): string => {
-  let normalized = url.replace(/\/$/, '');
+  if (!url) return 'http://localhost:8000';
+  
+  let normalized = url.trim().replace(/\/$/, '');
+  
+  // If URL doesn't have protocol, add it
   if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-    normalized = normalized.includes('localhost') ? `http://${normalized}` : `https://${normalized}`;
+    // Add https:// for non-localhost URLs
+    normalized = normalized.includes('localhost') 
+      ? `http://${normalized}` 
+      : `https://${normalized}`;
   }
+  
   return normalized;
 };
 
-const API = normalizeURL(process.env.REACT_APP_API_URL || 'http://localhost:8000');
+// Get API URL from environment
+const RAW_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API = normalizeURL(RAW_API_URL);
+
+// Debug log - remove after confirming fix works
+console.log('[Auth] API URL Config:', { raw: RAW_API_URL, normalized: API });
 
 export interface User {
   id: number;

@@ -1,8 +1,9 @@
 {
-  "buildCommand": "cd frontend && npm ci && npm run build",
+  "version": 2,
+  "buildCommand": "cd frontend && npm ci --legacy-peer-deps && npm run build",
   "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm install",
-  "devCommand": "cd frontend && npm start",
+  "installCommand": "cd frontend && npm ci --legacy-peer-deps",
+  "framework": null,
   "rewrites": [
     {
       "source": "/static/(.*)",
