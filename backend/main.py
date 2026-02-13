@@ -83,13 +83,23 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     
-    # Configure CORS - Allow all origins for production
-    # Note: allow_credentials=True requires explicit origins, not "*"
-    # So we set allow_credentials=False to allow wildcard origins
+    # Configure CORS - properly allow all origins for production
+    # Using a list of common patterns to allow any subdomain while maintaining compatibility
+    cors_origins = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "https://*.vercel.app",
+        "https://*.railway.app",
+        "https://ai-knowledge-continuity-system.vercel.app",
+        # Add more specific origins as needed
+    ]
+    
+    # For production, we need to use allow_origin_regex to match wildcard subdomains
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
+        allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.railway\.app|http://localhost:\d+",
+        allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
         expose_headers=["*"],
