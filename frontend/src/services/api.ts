@@ -14,6 +14,7 @@ import {
   ErrorResponse,
 } from '../types/api';
 import { API_URL } from '../config/api.config';
+import { supabase } from '../config/supabase';
 
 // Use centralized API URL config
 const BASE_URL = API_URL;
@@ -35,17 +36,16 @@ class APIClient {
 
     // Request interceptor — inject auth token automatically
     this.client.interceptors.request.use(
-      (config) => {
-        // Inject auth token from localStorage
+      async (config) => {
+        // Get token from Supabase session
         try {
-          const authData = localStorage.getItem('auth');
-          if (authData) {
-            const { token } = JSON.parse(authData);
-            if (token) {
-              config.headers.Authorization = `Bearer ${token}`;
-            }
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            config.headers.Authorization = `Bearer ${session.access_token}`;
           }
-        } catch {}
+        } catch (e) {
+          console.warn('[API] Failed to get Supabase session:', e);
+        }
 
         if (process.env.NODE_ENV === 'development') {
           console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, config.data);
