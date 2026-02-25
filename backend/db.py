@@ -21,9 +21,11 @@ def init_db():
     """
     try:
         sb = get_supabase()
-        # Quick connectivity check
-        sb.table("documents").select("id").limit(1).execute()
+        # Quick connectivity check — use conversations table (always present)
+        sb.table("conversations").select("id").limit(1).execute()
         logger.info("Supabase database connection verified")
+    except RuntimeError as e:
+        logger.warning(f"Supabase not configured: {e}")
     except Exception as e:
         logger.warning(f"Supabase connection check: {e} (tables may not exist yet — run setup_supabase.sql)")
 
@@ -159,13 +161,28 @@ def create_conversation(conversation_id: str, user_id: str, title: str = "New Co
 
 def get_user_conversations(user_id: str) -> List[Dict]:
     sb = get_supabase()
-    result = (
-        sb.table("conversations")
-        .select("*, messages(count)")
-        .eq("user_id", user_id)
-        .order("updated_at", desc=True)
-        .execute()
-    )
+    try:
+        result = (
+            sb.table("conversations")
+            .select("*, messages(count)")
+            .eq("user_id", user_id)
+            .order("updated_at", desc=True)
+            .execute()
+        )
+    except Exception:
+        # Fallback without embedded count if the relationship query fails
+        logger.warning("Embedded messages(count) query failed, falling back to simple select")
+        result = (
+            sb.table("conversations")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("updated_at", desc=True)
+            .execute()
+        )
+        return [
+            {**c, "message_count": 0}
+            for c in result.data
+        ]
     convos = []
     for c in result.data:
         msg_count = 0
@@ -180,15 +197,26 @@ def get_user_conversations(user_id: str) -> List[Dict]:
 
 def get_conversation(conversation_id: str, user_id: str) -> Optional[Dict]:
     sb = get_supabase()
-    result = (
-        sb.table("conversations")
-        .select("*")
-        .eq("id", conversation_id)
-        .eq("user_id", user_id)
-        .maybe_single()
-        .execute()
-    )
-    return result.data
+    try:
+        result = (
+            sb.table("conversations")
+            .select("*")
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        return result.data
+    except Exception:
+        # Fallback: some SDK versions don't support maybe_single()
+        result = (
+            sb.table("conversations")
+            .select("*")
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return result.data[0] if result.data else None
 
 
 def update_conversation(conversation_id: str, user_id: str, title: Optional[str] = None):

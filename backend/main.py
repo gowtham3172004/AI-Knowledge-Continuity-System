@@ -82,23 +82,13 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     
-    # Configure CORS - properly allow all origins for production
-    # Using a list of common patterns to allow any subdomain while maintaining compatibility
-    cors_origins = [
-        "http://localhost:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:3000",
-        "https://*.vercel.app",
-        "https://*.railway.app",
-        "https://ai-knowledge-continuity-system.vercel.app",
-        # Add more specific origins as needed
-    ]
-    
-    # For production, we need to use allow_origin_regex to match wildcard subdomains
+    # Configure CORS — allow all origins.
+    # Auth uses Bearer tokens (not cookies), so allow_credentials is not needed.
+    # This ensures CORS headers are present on ALL responses, including 500 errors.
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.onrender\.com|http://localhost:\d+|http://127\.0\.0\.1:\d+",
-        allow_credentials=True,
+        allow_origins=["*"],
+        allow_credentials=False,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
         expose_headers=["*"],
@@ -275,8 +265,11 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request,
         exc: Exception,
     ) -> JSONResponse:
-        """Handle unexpected exceptions."""
+        """Handle unexpected exceptions with CORS safety net."""
         logger.exception(f"Unhandled exception: {exc}")
+        
+        # Always include CORS headers as a safety net for error responses
+        headers = {"Access-Control-Allow-Origin": "*"}
         
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -284,9 +277,10 @@ def register_exception_handlers(app: FastAPI) -> None:
                 "error": {
                     "code": "INTERNAL_ERROR",
                     "message": "An unexpected error occurred",
-                    "details": {"type": type(exc).__name__} if api_settings.DEBUG else {},
+                    "details": {"type": type(exc).__name__, "message": str(exc)[:200]},
                 }
             },
+            headers=headers,
         )
 
 

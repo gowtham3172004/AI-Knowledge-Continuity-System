@@ -12,16 +12,27 @@ Provides APIs for:
 from typing import List, Optional
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.supabase_client import get_current_user
-from backend.db import (
-    get_gap_stats, get_knowledge_gaps, resolve_knowledge_gap,
-    get_document_stats, get_all_documents,
-)
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
+
+
+def _get_db():
+    """Lazy import of db functions."""
+    from backend.db import (
+        get_gap_stats, get_knowledge_gaps, resolve_knowledge_gap,
+        get_document_stats, get_all_documents,
+    )
+    return {
+        "get_gap_stats": get_gap_stats,
+        "get_knowledge_gaps": get_knowledge_gaps,
+        "resolve_knowledge_gap": resolve_knowledge_gap,
+        "get_document_stats": get_document_stats,
+        "get_all_documents": get_all_documents,
+    }
 
 
 # --- Response Models ---
@@ -85,16 +96,23 @@ class SuggestQuestionsResponse(BaseModel):
 async def knowledge_health():
     """
     Get overall knowledge health score and recommendations.
-    
-    The health score is calculated based on:
-    - Document coverage across knowledge types
-    - Number of unresolved knowledge gaps
-    - Document freshness (stale detection)
-    - Diversity of knowledge types
     """
-    doc_stats = get_document_stats()
-    gap_stats = get_gap_stats()
-    all_docs = get_all_documents()
+    try:
+        db = _get_db()
+        doc_stats = db["get_document_stats"]()
+        gap_stats = db["get_gap_stats"]()
+        all_docs = db["get_all_documents"]()
+    except Exception as e:
+        # Return a safe default if Supabase is unavailable
+        return KnowledgeHealthResponse(
+            health_score=0,
+            total_documents=0,
+            total_chunks=0,
+            coverage={},
+            unresolved_gaps=0,
+            stale_documents=0,
+            recommendations=[f"Database connection error: {str(e)[:100]}. Ensure Supabase tables exist."],
+        )
 
     # Calculate stale documents (>90 days old)
     stale_count = 0
@@ -163,45 +181,58 @@ async def knowledge_health():
 
 
 @router.get("/gaps", response_model=List[GapResponse])
-async def list_gaps(resolved: bool = False, ):
+async def list_gaps(resolved: bool = False):
     """List knowledge gaps detected by the system."""
-    gaps = get_knowledge_gaps(resolved=resolved)
-    return [
-        GapResponse(
-            id=g["id"],
-            query=g["query"],
-            confidence_score=g["confidence_score"],
-            severity=g["severity"],
-            detected_at=g["detected_at"] or "",
-            resolved=bool(g["resolved"]),
-        )
-        for g in gaps
-    ]
+    try:
+        db = _get_db()
+        gaps = db["get_knowledge_gaps"](resolved=resolved)
+        return [
+            GapResponse(
+                id=g["id"],
+                query=g["query"],
+                confidence_score=g["confidence_score"],
+                severity=g["severity"],
+                detected_at=g.get("detected_at") or "",
+                resolved=bool(g.get("resolved")),
+            )
+            for g in gaps
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)[:200]}")
 
 
 @router.get("/gaps/stats", response_model=GapStatsResponse)
 async def gap_statistics():
     """Get knowledge gap statistics."""
-    return get_gap_stats()
+    try:
+        db = _get_db()
+        return db["get_gap_stats"]()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)[:200]}")
 
 
 @router.post("/gaps/{gap_id}/resolve")
 async def mark_gap_resolved(gap_id: int, user=Depends(get_current_user)):
     """Mark a knowledge gap as resolved (after documentation is added)."""
-    resolve_knowledge_gap(gap_id, user["id"])
-    return {"status": "resolved", "id": gap_id}
+    try:
+        db = _get_db()
+        db["resolve_knowledge_gap"](gap_id, user["id"])
+        return {"status": "resolved", "id": gap_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)[:200]}")
 
 
 @router.get("/onboarding", response_model=OnboardingPathResponse)
 async def get_onboarding_path():
     """
     Generate an AI-powered onboarding path for new developers.
-    
-    Analyzes existing documents and creates a structured learning path
-    covering architecture, codebase, decisions, and processes.
     """
-    doc_stats = get_document_stats()
-    all_docs = get_all_documents()
+    try:
+        db = _get_db()
+        doc_stats = db["get_document_stats"]()
+        all_docs = db["get_all_documents"]()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)[:200]}")
     coverage = doc_stats.get("by_type", {})
 
     topics = []
@@ -313,11 +344,12 @@ async def get_onboarding_path():
 async def suggest_questions():
     """
     Generate smart suggested questions based on uploaded documents.
-
-    Unlike ChatGPT/Claude, these are personalized to YOUR project's
-    actual documentation. They help new developers know WHAT to ask.
     """
-    all_docs = get_all_documents()
+    try:
+        db = _get_db()
+        all_docs = db["get_all_documents"]()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)[:200]}")
     # Deduplicate documents by original name
     seen_names: set = set()
     unique_docs: list = []
@@ -328,8 +360,12 @@ async def suggest_questions():
             unique_docs.append(d)
     all_docs = unique_docs
 
-    doc_stats = get_document_stats()
-    gap_stats = get_gap_stats()
+    try:
+        doc_stats = db["get_document_stats"]()
+        gap_stats = db["get_gap_stats"]()
+    except Exception:
+        doc_stats = {"total_documents": 0, "total_chunks": 0, "by_type": {}}
+        gap_stats = {"total_gaps": 0, "unresolved": 0, "resolved": 0, "by_severity": {}}
     coverage = doc_stats.get("by_type", {})
     total = doc_stats.get("total_documents", 0)
 
