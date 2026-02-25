@@ -166,7 +166,7 @@ class KnowledgeAwareRetriever:
         strategy: str = "similarity",
         apply_knowledge_boost: bool = True,
         department: Optional[str] = None,
-        user_id: Optional[int] = None,
+        user_id: Optional[str] = None,
         **kwargs,
     ) -> KnowledgeAwareRetrievalResult:
         """

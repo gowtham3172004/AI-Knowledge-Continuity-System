@@ -37,6 +37,7 @@ env/
 
 # Vector store (can be regenerated)
 vector_store/faiss_index/
+vector_store/qdrant_data/
 
 # Logs
 logs/

@@ -72,7 +72,7 @@ class RAGService:
     async def query(
         self,
         request: QueryRequest,
-        user_id: Optional[int] = None,
+        user_id: Optional[str] = None,
     ) -> QueryResponse:
         """
         Execute a query against the RAG system.
@@ -155,7 +155,7 @@ class RAGService:
                 details={"original_error": str(e)}
             )
     
-    def _execute_query(self, request: QueryRequest, user_id: Optional[int] = None) -> Dict[str, Any]:
+    def _execute_query(self, request: QueryRequest, user_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Execute query synchronously (called in thread pool).
         

@@ -195,7 +195,7 @@ class RAGChain:
         include_sources: bool = True,
         use_memory: bool = True,
         use_knowledge_features: bool = True,
-        user_id: Optional[int] = None,
+        user_id: Optional[str] = None,
     ) -> RAGResponse:
         """
         Process a question through the RAG pipeline.
@@ -354,7 +354,7 @@ class RAGChain:
         include_sources: bool,
         chat_history: str,
         start_time: datetime,
-        user_id: Optional[int] = None,
+        user_id: Optional[str] = None,
     ) -> RAGResponse:
         """
         Process query with knowledge-aware features.

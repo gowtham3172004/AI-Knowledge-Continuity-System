@@ -151,11 +151,11 @@ def get_gap_stats() -> Dict:
 
 def create_conversation(conversation_id: str, user_id: str, title: str = "New Conversation") -> str:
     sb = get_supabase()
-    sb.table("conversations").insert({
+    sb.table("conversations").upsert({
         "id": conversation_id,
         "user_id": user_id,
         "title": title,
-    }).execute()
+    }, on_conflict="id").execute()
     return conversation_id
 
 
@@ -240,13 +240,13 @@ def delete_conversation(conversation_id: str, user_id: str) -> bool:
 def add_message(message_id: str, conversation_id: str, role: str, content: str,
                 response_data: Optional[str] = None):
     sb = get_supabase()
-    sb.table("messages").insert({
+    sb.table("messages").upsert({
         "id": message_id,
         "conversation_id": conversation_id,
         "role": role,
         "content": content,
         "response_data": response_data,
-    }).execute()
+    }, on_conflict="id").execute()
     # Update conversation timestamp
     sb.table("conversations").update({
         "updated_at": datetime.utcnow().isoformat(),

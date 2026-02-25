@@ -70,13 +70,18 @@ class QdrantVectorStore:
                     distance=qmodels.Distance.COSINE,
                 ),
             )
-            # Create payload index on user_id for fast filtering
+            logger.info("Created Qdrant collection: %s", COLLECTION_NAME)
+        
+        # Ensure user_id payload index exists (KEYWORD type for UUID strings)
+        try:
             self.client.create_payload_index(
                 collection_name=COLLECTION_NAME,
                 field_name="user_id",
-                field_schema=qmodels.PayloadSchemaType.INTEGER,
+                field_schema=qmodels.PayloadSchemaType.KEYWORD,
             )
-            logger.info("Created Qdrant collection: %s", COLLECTION_NAME)
+        except Exception:
+            # Index may already exist (possibly with different type) — that's OK
+            pass
 
     # ------------------------------------------------------------------
     # Add / index documents
@@ -85,7 +90,7 @@ class QdrantVectorStore:
     def add_documents(
         self,
         documents: List[Document],
-        user_id: int,
+        user_id: Any,
         batch_size: int = 64,
     ) -> int:
         """
@@ -96,6 +101,7 @@ class QdrantVectorStore:
         if not documents:
             return 0
 
+        # Store user_id as string to support both UUID and integer IDs
         texts = [doc.page_content for doc in documents]
         embeddings = self.embedding_manager.embed_documents(texts)
 
@@ -103,7 +109,7 @@ class QdrantVectorStore:
         for doc, vec in zip(documents, embeddings):
             # Build payload – must be JSON-safe
             payload: Dict[str, Any] = {
-                "user_id": user_id,
+                "user_id": str(user_id),
                 "page_content": doc.page_content,
             }
             for k, v in (doc.metadata or {}).items():
@@ -129,7 +135,7 @@ class QdrantVectorStore:
             batch = points[i : i + batch_size]
             self.client.upsert(collection_name=COLLECTION_NAME, points=batch)
 
-        logger.info("Added %d vectors for user %d", len(points), user_id)
+        logger.info("Added %d vectors for user %s", len(points), user_id)
         return len(points)
 
     # ------------------------------------------------------------------
@@ -139,7 +145,7 @@ class QdrantVectorStore:
     def search(
         self,
         query: str,
-        user_id: int,
+        user_id: Any,
         k: int = 5,
         score_threshold: float = 0.0,
     ) -> List[Tuple[Document, float]]:
@@ -157,7 +163,7 @@ class QdrantVectorStore:
                 must=[
                     qmodels.FieldCondition(
                         key="user_id",
-                        match=qmodels.MatchValue(value=user_id),
+                        match=qmodels.MatchValue(value=str(user_id)),
                     )
                 ]
             ),
@@ -179,7 +185,7 @@ class QdrantVectorStore:
     # Deletion helpers
     # ------------------------------------------------------------------
 
-    def delete_by_source(self, user_id: int, source_name: str) -> int:
+    def delete_by_source(self, user_id: Any, source_name: str) -> int:
         """Delete all vectors matching a given source name for a user."""
         result = self.client.delete(
             collection_name=COLLECTION_NAME,
@@ -188,7 +194,7 @@ class QdrantVectorStore:
                     must=[
                         qmodels.FieldCondition(
                             key="user_id",
-                            match=qmodels.MatchValue(value=user_id),
+                            match=qmodels.MatchValue(value=str(user_id)),
                         ),
                         qmodels.FieldCondition(
                             key="source",
@@ -198,10 +204,10 @@ class QdrantVectorStore:
                 )
             ),
         )
-        logger.info("Deleted vectors for user %d, source '%s'", user_id, source_name)
+        logger.info("Deleted vectors for user %s, source '%s'", user_id, source_name)
         return 0  # Qdrant delete doesn't return count easily
 
-    def delete_all_user_docs(self, user_id: int):
+    def delete_all_user_docs(self, user_id: Any):
         """Delete ALL vectors for a user."""
         self.client.delete(
             collection_name=COLLECTION_NAME,
@@ -210,19 +216,19 @@ class QdrantVectorStore:
                     must=[
                         qmodels.FieldCondition(
                             key="user_id",
-                            match=qmodels.MatchValue(value=user_id),
+                            match=qmodels.MatchValue(value=str(user_id)),
                         )
                     ]
                 )
             ),
         )
-        logger.info("Deleted all vectors for user %d", user_id)
+        logger.info("Deleted all vectors for user %s", user_id)
 
     # ------------------------------------------------------------------
     # Stats / helpers
     # ------------------------------------------------------------------
 
-    def count_user_vectors(self, user_id: int) -> int:
+    def count_user_vectors(self, user_id: Any) -> int:
         """Count vectors belonging to a user."""
         result = self.client.count(
             collection_name=COLLECTION_NAME,
@@ -230,7 +236,7 @@ class QdrantVectorStore:
                 must=[
                     qmodels.FieldCondition(
                         key="user_id",
-                        match=qmodels.MatchValue(value=user_id),
+                        match=qmodels.MatchValue(value=str(user_id)),
                     )
                 ]
             ),
@@ -238,7 +244,7 @@ class QdrantVectorStore:
         )
         return result.count
 
-    def get_stats(self, user_id: Optional[int] = None) -> Dict[str, Any]:
+    def get_stats(self, user_id: Optional[Any] = None) -> Dict[str, Any]:
         """Get collection statistics, optionally filtered to a user."""
         info = self.client.get_collection(COLLECTION_NAME)
         total = info.points_count or 0
