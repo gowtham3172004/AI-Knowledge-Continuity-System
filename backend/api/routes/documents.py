@@ -14,7 +14,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
-from backend.auth import get_current_user
+from backend.supabase_client import get_current_user  # noqa: F401 - used via Depends
 from backend.db import (
     add_document, update_document_status, get_user_documents,
     get_all_documents, delete_document, get_document_stats,
@@ -282,6 +282,6 @@ async def remove_document(doc_id: int, user=Depends(get_current_user)):
 
 
 @router.get("/stats", response_model=DocumentStatsResponse)
-async def document_stats(user=Depends(get_current_user)):
+async def document_stats():
     """Get document statistics for the knowledge base."""
     return get_document_stats()

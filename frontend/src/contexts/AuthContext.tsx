@@ -1,28 +1,30 @@
 /**
- * Auth context - manages user login state and tokens
+ * Auth Context — Supabase Authentication
+ * 
+ * Manages user authentication state using Supabase Auth.
+ * Provides login, register, logout, and session persistence.
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { API_URL } from '../config/api.config';
+import { supabase } from '../config/supabase';
+import { Session, User } from '@supabase/supabase-js';
 
-// Use centralized API URL config
-const API = API_URL;
-
-export interface User {
-  id: number;
+export interface AppUser {
+  id: string;
   email: string;
   full_name: string;
   role: string;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
+  session: Session | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string, role: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -33,112 +35,83 @@ export const useAuth = () => {
   return ctx;
 };
 
+/** Convert Supabase User to our app user shape */
+const toAppUser = (user: User): AppUser => ({
+  id: user.id,
+  email: user.email || '',
+  full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+  role: user.user_metadata?.role || 'developer',
+});
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load from localStorage on mount
+  // Initialize: get existing session and listen for auth changes
   useEffect(() => {
-    const saved = localStorage.getItem('auth');
-    if (saved) {
-      try {
-        const { user: u, token: t } = JSON.parse(saved);
-        setUser(u);
-        setToken(t);
-      } catch { /* ignore */ }
-    }
-    setIsLoading(false);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
+      if (s?.user) setUser(toAppUser(s.user));
+      setIsLoading(false);
+    });
+
+    // Listen for auth state changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, s) => {
+        setSession(s);
+        setUser(s?.user ? toAppUser(s.user) : null);
+        setIsLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Persist to localStorage
-  useEffect(() => {
-    if (user && token) {
-      localStorage.setItem('auth', JSON.stringify({ user, token }));
-    } else {
-      localStorage.removeItem('auth');
-    }
-  }, [user, token]);
+  const token = session?.access_token || null;
 
   const login = async (email: string, password: string) => {
-    try {
-      const res = await fetch(`${API}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      
-      // Check if response has content before parsing
-      const text = await res.text();
-      
-      if (!res.ok) {
-        let errorMessage = 'Login failed';
-        try {
-          const err = JSON.parse(text);
-          errorMessage = err.detail || err.message || errorMessage;
-        } catch {
-          errorMessage = text || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-      
-      // Parse success response
-      const data = JSON.parse(text);
-      setUser(data.user);
-      setToken(data.token);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Network error. Please check if the backend is running and try again.');
-    }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw new Error(error.message);
+    if (data.user) setUser(toAppUser(data.user));
   };
 
   const register = async (email: string, password: string, fullName: string, role: string) => {
-    try {
-      const res = await fetch(`${API}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, full_name: fullName, role }),
-      });
-      
-      // Check if response has content before parsing
-      const text = await res.text();
-      
-      if (!res.ok) {
-        let errorMessage = 'Registration failed';
-        try {
-          const err = JSON.parse(text);
-          errorMessage = err.detail || err.message || errorMessage;
-        } catch {
-          errorMessage = text || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-      
-      // Parse success response
-      const data = JSON.parse(text);
-      setUser(data.user);
-      setToken(data.token);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Network error. Please check if the backend is running and try again.');
-    }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role,
+        },
+      },
+    });
+    if (error) throw new Error(error.message);
+    if (data.user) setUser(toAppUser(data.user));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    setToken(null);
-    localStorage.removeItem('auth');
+    setSession(null);
     localStorage.removeItem('conversations');
   };
 
   return (
     <AuthContext.Provider value={{
-      user, token, isAuthenticated: !!token, isLoading,
-      login, register, logout,
+      user,
+      session,
+      token,
+      isAuthenticated: !!session,
+      isLoading,
+      login,
+      register,
+      logout,
     }}>
       {children}
     </AuthContext.Provider>

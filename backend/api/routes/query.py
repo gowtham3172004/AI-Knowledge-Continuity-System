@@ -21,7 +21,7 @@ from backend.schemas.query import (
     QueryResponse,
     QueryErrorResponse,
 )
-from backend.auth import get_current_user
+from backend.supabase_client import get_current_user
 
 # Import DB for gap logging
 try:

@@ -27,7 +27,6 @@ from backend.core.exceptions import (
 )
 from backend.core.lifecycle import ApplicationState, lifespan
 from backend.api.routes import query_router, ingest_router, health_router
-from backend.api.routes.auth import router as auth_router
 from backend.api.routes.documents import router as documents_router
 from backend.api.routes.dashboard import router as dashboard_router
 from backend.api.routes.conversations import router as conversations_router
@@ -98,7 +97,7 @@ def create_app() -> FastAPI:
     # For production, we need to use allow_origin_regex to match wildcard subdomains
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.railway\.app|http://localhost:\d+",
+        allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.onrender\.com|http://localhost:\d+|http://127\.0\.0\.1:\d+",
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
@@ -112,7 +111,6 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     
     # Register routes
-    app.include_router(auth_router, prefix="/api")
     app.include_router(documents_router, prefix="/api")
     app.include_router(dashboard_router, prefix="/api")
     app.include_router(conversations_router, prefix="/api")

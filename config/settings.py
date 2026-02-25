@@ -117,6 +117,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"  # Allow extra env vars (e.g. SUPABASE_URL) without validation errors
 
 
 @lru_cache()

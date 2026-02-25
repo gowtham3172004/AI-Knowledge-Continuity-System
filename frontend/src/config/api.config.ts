@@ -1,21 +1,24 @@
 /**
  * API Configuration - Auto-detects correct backend URL
  * 
- * This bypasses Vercel environment variable issues by detecting
- * the correct API URL based on the current hostname.
+ * For production: uses REACT_APP_API_URL env var (set in Vercel dashboard)
+ * For local dev: defaults to localhost:8000
  */
-
-// Production backend URL - HARDCODED for reliability
-const PRODUCTION_API_URL = 'https://ai-knowledge-continuity-system-production.up.railway.app';
 
 // Local development URL
 const LOCAL_API_URL = 'http://localhost:8000';
 
 /**
  * Get the correct API URL based on current environment
- * This runs at runtime, not build time, so it always works correctly
  */
 export const getApiUrl = (): string => {
+  // Build-time environment variable (set in Vercel)
+  const envUrl = process.env.REACT_APP_API_URL;
+  if (envUrl) {
+    console.log('[Config] Using env API URL:', envUrl);
+    return envUrl.replace(/\/+$/, ''); // strip trailing slash
+  }
+
   // Check if we're in a browser environment
   if (typeof window === 'undefined') {
     return LOCAL_API_URL;
@@ -29,9 +32,9 @@ export const getApiUrl = (): string => {
     return LOCAL_API_URL;
   }
 
-  // Production (Vercel deployment)
-  console.log('[Config] Using PRODUCTION API:', PRODUCTION_API_URL);
-  return PRODUCTION_API_URL;
+  // Production fallback — should be overridden by REACT_APP_API_URL
+  console.warn('[Config] REACT_APP_API_URL not set, using fallback');
+  return LOCAL_API_URL;
 };
 
 // Export the API URL for use throughout the app

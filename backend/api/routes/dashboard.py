@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from backend.auth import get_current_user
+from backend.supabase_client import get_current_user
 from backend.db import (
     get_gap_stats, get_knowledge_gaps, resolve_knowledge_gap,
     get_document_stats, get_all_documents,
@@ -82,7 +82,7 @@ class SuggestQuestionsResponse(BaseModel):
 # --- Routes ---
 
 @router.get("/health", response_model=KnowledgeHealthResponse)
-async def knowledge_health(user=Depends(get_current_user)):
+async def knowledge_health():
     """
     Get overall knowledge health score and recommendations.
     
@@ -163,7 +163,7 @@ async def knowledge_health(user=Depends(get_current_user)):
 
 
 @router.get("/gaps", response_model=List[GapResponse])
-async def list_gaps(resolved: bool = False, user=Depends(get_current_user)):
+async def list_gaps(resolved: bool = False, ):
     """List knowledge gaps detected by the system."""
     gaps = get_knowledge_gaps(resolved=resolved)
     return [
@@ -180,7 +180,7 @@ async def list_gaps(resolved: bool = False, user=Depends(get_current_user)):
 
 
 @router.get("/gaps/stats", response_model=GapStatsResponse)
-async def gap_statistics(user=Depends(get_current_user)):
+async def gap_statistics():
     """Get knowledge gap statistics."""
     return get_gap_stats()
 
@@ -193,7 +193,7 @@ async def mark_gap_resolved(gap_id: int, user=Depends(get_current_user)):
 
 
 @router.get("/onboarding", response_model=OnboardingPathResponse)
-async def get_onboarding_path(user=Depends(get_current_user)):
+async def get_onboarding_path():
     """
     Generate an AI-powered onboarding path for new developers.
     
@@ -310,7 +310,7 @@ async def get_onboarding_path(user=Depends(get_current_user)):
 
 
 @router.get("/suggest-questions", response_model=SuggestQuestionsResponse)
-async def suggest_questions(user=Depends(get_current_user)):
+async def suggest_questions():
     """
     Generate smart suggested questions based on uploaded documents.
 

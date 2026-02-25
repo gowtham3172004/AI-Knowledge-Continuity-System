@@ -87,7 +87,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onBackToHome, onSwitchToSi
           </form>
 
           <p className="mt-6 text-xs text-gray-500 text-center">
-            Demo: dev@test.com / pass123
+            Sign in with your registered email and password
           </p>
 
           {onSwitchToSignup && (

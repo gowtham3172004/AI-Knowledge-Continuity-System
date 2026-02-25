@@ -11,7 +11,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from backend.auth import get_current_user
+from backend.supabase_client import get_current_user
 from backend.db import (
     create_conversation,
     get_user_conversations,
